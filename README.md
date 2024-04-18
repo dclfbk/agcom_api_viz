@@ -5,6 +5,7 @@ AGCOM periodically releases television monitoring data in XML format - https://w
 At present this data is exposed with a simple file and has no reuse.
 The project aims to make this data more accessible through the creation of RestAPI and a web client that allows you to query them through visualizations.
 
+<img src="screenshots/logo.svg" width="150px" align="right">
 
 # documentation
 - reference 
