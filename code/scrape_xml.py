@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Import necessari
-
 # In[1]:
 
 
+# imports
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -15,29 +14,15 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-# # Scraping 
-# **XML con i dati elementari del monitoraggio televisivo**
-# - indirizzo di partenza è [https://www.agcom.it/dati-elementari-di-monitoraggio-televisivo](https://www.agcom.it/dati-elementari-di-monitoraggio-televisivo)
-# - la pagina contiene una lista di 10 elementi, a fine di ogni pagina c'è il bottone "next" (identificato dal tag "li" con classe "next"). Premendo su quello si ottiene la pagina successiva
-
-# ## Raccolta delle pagina
-# partendo dalla prima pagina 
-
 # In[2]:
 
 
+# scraping from the main website
 url = "https://www.agcom.it/dati-elementari-di-monitoraggio-televisivo"
 pages = []
 pages.append(url)
 soup = BeautifulSoup(requests.get(url).content, "html.parser")
 li = soup.find("li", {"class": "next"}) 
-
-
-# si raccolgono tutte le successive fino a che si ha l'elenco delle pagine con i link ai contenuti
-
-# In[3]:
-
-
 while (li is not None):
     url = li.find("a")['href']
     pages.append(url)
@@ -45,14 +30,10 @@ while (li is not None):
     li = soup.find("li", {"class": "next"})  
 
 
-# ## Raccolta delle singole pagine con i dati
-# l'url di ciascuna pagina con i dati contiene un codice univoco che va messo in coda a questa url 
-# 
-# https://www.agcom.it/visualizza-documento?p_p_id=visualizzadocumento_WAR_visualizzadocumentoportlet&p_p_lifecycle=1&p_p_state=normal&p_p_mode=view&p_p_col_id=single-column&p_p_col_count=1&_visualizzadocumento_WAR_visualizzadocumentoportlet_javax.portlet.action=convertUrl&_visualizzadocumento_WAR_visualizzadocumentoportlet_uuid=
-
-# In[4]:
+# In[3]:
 
 
+# data from each page
 lefturl = "https://www.agcom.it/visualizza-documento?p_p_id=visualizzadocumento_WAR_visualizzadocumentoportlet&p_p_lifecycle=1&p_p_state=normal&p_p_mode=view&p_p_col_id=single-column&p_p_col_count=1&_visualizzadocumento_WAR_visualizzadocumentoportlet_javax.portlet.action=convertUrl&_visualizzadocumento_WAR_visualizzadocumentoportlet_uuid="
 idtoscrape = []
 for url in pages:
@@ -62,12 +43,10 @@ for url in pages:
         idtoscrape.append(a['href'].replace("/visualizza-documento/",""))
 
 
-# ## Raccolta dei singoli file
-# i singoli file sono nel link che ha classe "nopdf"
-
-# In[5]:
+# In[4]:
 
 
+# download of each file 
 files = []
 for id in idtoscrape:
     url = lefturl + id
@@ -75,22 +54,16 @@ for id in idtoscrape:
     files.append(soup.find_all("a", {"class": "nopdf"})[0]['href'])
 
 
-# ## Creazione del dataframe
-# - viene preso il primo file per creare il dataframe "padre"
-# - le prime due righe non servono e contengono le informazioni sulla licenza 
-# - la colonna TESTO non serve in quanto contiene il testo della licenza
-
-# In[6]:
+# In[5]:
 
 
+# dataframe creation
 data_toclean = pd.read_xml(files[0],encoding='utf-8', parser='lxml')
 data_toclean = data_toclean.iloc[2:, :]
 del data_toclean['TESTO']
 
 
-# dal secondo file in poi questi vengono uniti nel dataframe
-
-# In[7]:
+# In[6]:
 
 
 for file in files[1:]:
@@ -101,15 +74,11 @@ for file in files[1:]:
     data_toclean = pd.concat([data_toclean, df])
 
 
-# ## Salvataggio dei file originali
-# ciascun file con i dati è un XML compresso con gzip<br/>
-# i file vengono salvati in /data/raw
-
-# In[8]:
+# In[7]:
 
 
+# save original files
 k = 0
-#procedura per salvare i file
 for file in files:
     response = requests.get(file, stream=True)
     filename = str(k) + "_"  + file.split("+")[2].split("/")[0].replace("-", "_")+".xml.gz"
@@ -118,43 +87,18 @@ for file in files:
     k += 1
 
 
-# # Pulizia del DataFrame
-# viene generata una copia e vengono eliminate le righe vuote
-
-# In[9]:
+# In[8]:
 
 
+# dataframe cleaning
 data = data_toclean
 data = data.dropna()
 
 
-# In[10]:
+# In[9]:
 
 
-data
-
-
-# In[11]:
-
-
-#cc = data.COGNOME.unique()
-
-
-# In[12]:
-
-
-#for c in cc:
-#    print(c) 
-#    print(data[data.COGNOME == c].NOME.unique())
-#    print("---")
-    
-
-
-# questa è una raccolta di parole che hanno problemi con la codifica caratteri
-
-# In[13]:
-
-
+# words to clean (?)
 replace_words = [];
 replace_words.append(("Pubblicita", "Pubblicità"))
 replace_words.append(("Pubblicit�", "Pubblicità"))
@@ -280,7 +224,7 @@ replace_words.append(("Zuccal�", "Zuccalà"))
 replace_words.append(("Mont�", "Montà"))
 replace_words.append(("Bertol�", "Bertolè"))
 replace_words.append(("Movimento Verde � Popolare","Movimento Verde è Popolare"))
-replace_words.append(("Spirl�", "Spirlì"))
+replace_words.append(("Spirl�", "Spire qui viene applicata la pulizialì"))
 replace_words.append(("Tot�", "Totò"))
 replace_words.append(("Gioffr�", "Gioffrè"))
 replace_words.append(("Gran�", "Granà"))
@@ -388,11 +332,10 @@ replace_words.append(("Noi con l?Italia-USEI-Cambiamo!-Alleanza di Centro",
 fields = ['ARGOMENTO','MICRO_CATEGORIA','PROGRAMMA','COGNOME','NOME']
 
 
-# e qui viene applicata la pulizia
-
-# In[14]:
+# In[10]:
 
 
+# apply cleanig
 for field in fields:
     for words in replace_words:
         try:
@@ -403,30 +346,53 @@ for field in fields:
             pass
 
 
-# trasformazione della "DURATA" in intero
+# In[ ]:
+
+
+# DURATA as integer
+data.DURATA = data.DURATA.astype(int)
+
 
 # In[ ]:
 
 
-data.DURATA = data.DURATA.astype(int)
+def convertime(datestring):
+    rdatestring = None
+    if "." in datestring:
+        rdatestring = pd.to_datetime(datestring,  format="%d.%m.%Y")
+    elif "/" in datestring:
+        rdatestring = pd.to_datetime(datestring,  format="%d/%m/%Y")
+    return(rdatestring)
 
-
-# trasformazione delle date in oggetti datetime
 
 # In[ ]:
 
 
 data['DATA'] = data['DATA'].apply(lambda x: x.replace(" 00:00", ""))
 data['DATA'] = data['DATA'].apply(lambda x: x.replace(":00", ""))
-data.DATA = pd.to_datetime(data["DATA"],  format="%d.%m.%Y")
+data['DATA'] = data.DATA.apply(convertime) # = pd.to_datetime(data["DATA"],  format="%d.%m.%Y")
 
 
-# ## Creazione del file in formato parquet
+# In[ ]:
+
+
+cols = {"CHANNEL":"channel",
+        "PROGRAMMA":"program",
+        "DATA":"day",
+        "COGNOME":"lastname",
+        "NOME":"name",
+        "MICRO_CATEGORIA":"subcategory",
+        "ARGOMENTO":"topic",
+        "DURATA":"duration",
+        "TIPO_TEMPO":"kind"}
+data.rename(columns=cols,inplace=True)
+
 
 # #
 
 # In[ ]:
 
 
-data.to_parquet(".." + os.sep + "data" + os.sep + "dati_presenze_politici.parquet")
+# save data
+data.to_parquet(".." + os.sep + "docs"  + os.sep +  "data" + os.sep + "agcomdata.parquet")
 
