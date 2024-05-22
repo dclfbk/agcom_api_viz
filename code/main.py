@@ -7,9 +7,6 @@ from datetime import datetime
 import calendar
 warnings.filterwarnings('ignore')
 
-# potential APIs:
-#     - /politicianPoliticalGroups --> how many political groups a politician have participated in
-
 
 data = pd.read_parquet(".." + os.sep + "docs"  + os.sep +  "data" + os.sep + "agcomdata.parquet")
 
@@ -298,7 +295,8 @@ async def get_interventions_political_group(
     kind_: str = Query(default = "both" , description="Type of data", enum = kind)
 ):
     """
-    Return how much a political group has intervened in tv (counting also the politicians single intervents)
+    Return how much a political group has intervened in tv 
+    (counting also politicians single intervents)
     """
 
     interventions_polgroup = data[data.affiliation == name]
