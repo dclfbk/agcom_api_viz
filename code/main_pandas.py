@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query
 from starlette.responses import FileResponse
-import polars as pl
+import pandas as pd
 import os
 import warnings
 from datetime import datetime
@@ -8,25 +8,25 @@ import calendar
 warnings.filterwarnings('ignore')
 
 
-data = pl.read_parquet(".." + os.sep + "docs"  + os.sep +  "data" + os.sep + "agcomdata.parquet")
-data = data.with_columns((pl.col("name") + " " + pl.col("lastname")).alias("fullname"))
+data = pd.read_parquet(".." + os.sep + "docs"  + os.sep +  "data" + os.sep + "agcomdata.parquet")
 
-data = data.with_columns(
-    pl.col('kind').map_dict({'Parola': 'speech', 'Notizia': 'news'}).alias('kind')
-)
+data["fullname"] = data['name'] + " " + data['lastname']
+data['day'] = pd.to_datetime(data['day'])
 
-start_date = data.select('day').min().to_series()[0].strftime('%d/%m/%Y')
-end_date = data.select('day').max().to_series()[0].strftime('%d/%m/%Y')
+data['kind'] = data['kind'].replace({'Parola': 'speech', 'Notizia': 'news'})
+
+start_date = data.day.min().strftime('%d/%m/%Y')
+end_date = data.day.max().strftime('%d/%m/%Y')
 
 kind = ["speech", "news", "both"]
 
-politicians = data.filter(pl.col("name") != "political movement")
-political_groups = data.filter(pl.col("name") == "political movement")
+politicians = data[data.name != "political movement"]
+political_groups = data[data.name == "political movement"]
 
-channels = data.select('channel').unique().to_series().to_list()
-programs = data.select('program').unique().to_series().to_list()
-affiliations = data.select('affiliation').unique().to_series().to_list()
-topics = data.select('topic').unique().to_series().to_list()
+channels = data.channel.unique()
+programs = data.program.unique()
+affiliations = data.affiliation.unique()
+topics = data.topic.unique()
 
 # -------------------------------------------------------
 
@@ -47,11 +47,12 @@ def filter_data(data_, start_date_, end_date_, kind_):
     start_date_ = validate_date(start_date_)
     end_date_ = validate_date(end_date_)
 
-    filtered_data = data_.filter(pl.col("day") >= start_date_).filter(pl.col("day") <= end_date_)
-
+    filtered_data = data_[
+        (data_.day >= start_date_) &
+        (data_.day <= end_date_)]
 
     if kind_ != "both":
-        filtered_data = filtered_data.filter(pl.col("kind") == kind_)
+        filtered_data = filtered_data[filtered_data.kind == kind_]
 
     return filtered_data
 
@@ -78,9 +79,10 @@ async def get_politicians(
     Return all politicians
     """
     politicians_ = filter_data(politicians, start_date_, end_date_, kind_)
-    politicians_ = politicians_.select('fullname').unique().to_series().to_list()
+    politicians_ = politicians_.fullname.unique().tolist()
 
     return { "politicians": politicians_ }
+
 
 
 @app.get("/v1/political_groups")
@@ -94,7 +96,7 @@ async def get_political_groups(
     """
 
     political_groups_ = filter_data(political_groups, start_date_, end_date_, kind_)
-    political_groups_ = political_groups_.select('lastname').unique().to_series().to_list()
+    political_groups_ = political_groups_.lastname.unique().tolist()
 
     return { "political_groups": political_groups_ }
 
@@ -105,7 +107,7 @@ async def get_channels():
     Return all channels
     """
 
-    channels_ = data.select('channel').unique().to_series().to_list()
+    channels_ = data.channel.unique().tolist()
 
     return { "channels": channels_ }
 
@@ -115,7 +117,7 @@ async def get_programs():
     """
     Return all programs
     """
-    programs_ = data.select('program').unique().to_series().to_list()
+    programs_ = data.program.unique().tolist()
 
     return { "programs": programs_ }
 
@@ -126,7 +128,7 @@ async def get_affiliations():
     Return all affiliations
     """
 
-    affiliations_ = data.select('affiliation').unique().to_series().to_list()
+    affiliations_ = data.affiliation.unique().tolist()
 
     return { "affiliations": affiliations_ }
 
@@ -137,7 +139,7 @@ async def get_topics():
     Return all topics
     """
 
-    topics_ = data.select('topic').unique().to_series().to_list()
+    topics_ = data.topic.unique().tolist()
 
     return { "topics": topics_ }
 
@@ -154,18 +156,17 @@ async def get_politician_topics(
     Return how much a politician talked about all the possible topics
     """
 
-    politician_topics = politicians.filter(pl.col('fullname') == name)
-
+    politician_topics = politicians[politicians['fullname'] == name]
     politician_topics = filter_data(politician_topics, start_date_, end_date_, kind_)
     final_list = []
 
     for t in topics:
-        temp = politician_topics.filter(pl.col('topic') == t)
-        total = temp.select('duration').sum().to_series().to_list()
+        temp = politician_topics[politician_topics.topic == t]
+        total = temp["duration"].sum()
         interventions = temp.shape[0]
         final_list.append({"topic": t,
-                           "minutes" : total[0],
-                           "interventions" : interventions })
+                           "minutes" : int(total),
+                           "interventions" : int(interventions) })
 
     return { "politician": name, "topics": final_list }
 
@@ -180,18 +181,17 @@ async def get_political_group_topics(
     """
     Return how much a political group talked about all the possible topics 
     """
-
-    polgroup_topics = political_groups.filter(pl.col('lastname') == name)
+    polgroup_topics = political_groups[political_groups.lastname == name]
     polgroup_topics = filter_data(polgroup_topics, start_date_, end_date_, kind_)
     final_list = []
 
     for t in topics:
-        temp = polgroup_topics.filter(pl.col('topic') == t)
-        total = temp.select('duration').sum().to_series().to_list()
+        temp = polgroup_topics[polgroup_topics.topic == t]
+        total = temp["duration"].sum()
         interventions = temp.shape[0]
         final_list.append({"topic": t,
-                           "minutes" : total[0],
-                           "interventions" : interventions })
+                           "minutes" : int(total),
+                           "interventions" : int(interventions) })
 
     return { "political group": name, "topics": final_list }
 
@@ -208,19 +208,19 @@ async def get_politician_channels(
     Return how much a politician talked in a specific channel
     """
 
-    politician_channels = politicians.filter(pl.col('fullname') == name)
+    politician_channels = politicians[politicians['fullname'] == name]
     politician_channels = filter_data(politician_channels, start_date_, end_date_, kind_)
     final_list = []
 
     for c in channels:
-        temp = politician_channels.filter(pl.col('channel') == c)
-        total = temp.select('duration').sum().to_series().to_list()
+        temp = politician_channels[politician_channels['channel'] == c]
+        total = temp["duration"].sum()
         interventions = temp.shape[0]
         final_list.append({"channel": c,
-                           "minutes" : total[0],
-                           "interventions" : interventions })
+                           "minutes" : int(total),
+                           "interventions" : int(interventions)})
 
-    return { "political group": name, "topics": final_list }
+    return { "politician": name, "channels": final_list }
 
 
 @app.get("/v1/polGroupChannels/{name}")
@@ -233,17 +233,17 @@ async def get_political_group_channels(
     """
     Return how much a political group talked in a specific channel
     """
-    polgroup_channels = political_groups.filter(pl.col('lastname') == name)
+    polgroup_channels = political_groups[political_groups.lastname == name]
     polgroup_channels = filter_data(polgroup_channels, start_date_, end_date_, kind_)
     final_list = []
 
     for c in channels:
-        temp = polgroup_channels.filter(pl.col('channel') == c)
-        total = temp.select('duration').sum().to_series().to_list()
+        temp = polgroup_channels[polgroup_channels.channel == c]
+        total = temp["duration"].sum()
         interventions = temp.shape[0]
         final_list.append({"channel": c,
-                           "minutes" : total[0],
-                           "interventions" : interventions })
+                           "minutes" : int(total),
+                           "interventions" : int(interventions) })
 
     return { "political group": name, "channels": final_list }
 
@@ -259,11 +259,12 @@ async def get_politicians_affiliation(
     """
     Return how many politicians participate (have participated) in an affiliation
     """
-    politicians_affiliation = politicians.filter(pl.col('affiliation') == name)
-    politicians_affiliation = filter_data(politicians_affiliation, start_date_, end_date_, kind_)
-    final_list = politicians_affiliation.select('fullname').unique().to_series().to_list()
 
-    return { "affiliation": name, "politicians": final_list }
+    politicians_affiliation = politicians[politicians.affiliation == name]
+    politicians_affiliation = filter_data(politicians_affiliation, start_date_, end_date_, kind_)
+    final_list = politicians_affiliation.fullname.unique().tolist()
+
+    return { "affiliation": name, "politicians": final_list}
 
 
 @app.get("/v1/affiliationsPolitician/{name}")
@@ -277,9 +278,9 @@ async def get_affiliations_politician(
     Return how many affiliations a politician have participated in
     """
 
-    affiliations_politician = politicians.filter(pl.col('fullname') == name)
+    affiliations_politician = politicians[politicians.fullname == name]
     affiliations_politician = filter_data(affiliations_politician, start_date_, end_date_, kind_)
-    final_list = affiliations_politician.select('affiliation').unique().to_series().to_list()
+    final_list = affiliations_politician.affiliation.unique().tolist()
 
     return { "politician": name, "affiliations": final_list}
 
@@ -297,9 +298,10 @@ async def get_interventions_political_group(
     (counting also politicians single intervents)
     """
 
-    interventions_polgroup = data.filter(pl.col('affiliation') == name)
+    interventions_polgroup = data[data.affiliation == name]
     interventions_polgroup = filter_data(interventions_polgroup, start_date_, end_date_, kind_)
     interventions = interventions_polgroup.shape[0]
-    minutes = interventions_polgroup.select('duration').sum().to_series().to_list()
+    minutes = interventions_polgroup.duration.sum()
 
-    return { "political group": name, "interventions": interventions, "minutes": minutes[0] }
+
+    return { "political group": name, "interventions": int(interventions), "minutes": int(minutes) }
