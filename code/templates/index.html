@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="../static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+
+<body>
+  <form>
+    <input type="radio" id="politician" value="politician" name="choose_pol">
+    <label for="politician">Politician</label><br>
+    <input type="radio" id="political_group" value="political_group" name="choose_pol">
+    <label for="political_group">Political Group</label>
+  </form>
+  <select id="dynamicSelect"></select>
+  <div id="api-data"></div>
+
+  <script>
+        async function fetchData(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Errore nel recupero dei dati:', error);
+            }
+        }
+    var politicians = fetchData("/v1/politicians");
+    console.log(politicians);
+  </script>
+</body>
+

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Query
+from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 import polars as pl
 import os
@@ -59,12 +60,14 @@ def filter_data(data_, start_date_, end_date_, kind_):
 
 app = FastAPI()
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.get("/")
 async def read_index():
     """
     Serve the index.html file.
     """
-    return FileResponse('index.html')
+    return FileResponse('templates/index.html')
 
 # -------------------------------------------------------
 
