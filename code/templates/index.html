@@ -6,33 +6,178 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="../static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"/>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 </head>
 
 <body>
-  <form>
-    <input type="radio" id="politician" value="politician" name="choose_pol">
-    <label for="politician">Politician</label><br>
-    <input type="radio" id="political_group" value="political_group" name="choose_pol">
-    <label for="political_group">Political Group</label>
-  </form>
-  <select id="dynamicSelect"></select>
-  <div id="api-data"></div>
+  <div class="searchPol">
+    <form>
+      <input type="radio" id="politician" value="politician" name="choose_pol" onclick="handleOptionChange(this)">
+      <label for="politician">Politician</label><br>
+      <input type="radio" id="political_group" value="political_group" name="choose_pol" onclick="handleOptionChange(this)">
+      <label for="political_group">Political Group</label>
+    </form>
+    <select id="select_pol" style="width: 100%;">
+      <option></option>
+    </select>
+  </div>
+  <div>
+    <p>from: <input type="date" id="start_date" onchange="limitEndDate()"/></p>  
+    <p>to: <input type="date"  id="end_date"/></p>
+  </div>
+  <div>
+    <form id="cb">
+      <input type="checkbox" id="news" value="news" name="choose_type" checked onclick="changeType(); lineChart()" >
+      <label for="news">News</label><br>
+      <input type="checkbox" id="speech" value="speech" name="choose_type" checked onclick="changeType(); lineChart()">
+      <label for="speech">Speech</label>
+    </form>
+  </div>
+
+  <button onclick="lineChart()">Line Chart</button>
+
+  <div id="main" style="width: 1600px;height:800px;"></div>
 
   <script>
-        async function fetchData(url) {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error('Errore nel recupero dei dati:', error);
+
+    //function to call APIs passing url
+    async function fetchData(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
             }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Errore nel recupero dei dati:', error);
         }
-    var politicians = fetchData("/v1/politicians");
-    console.log(politicians);
+    }
+    
+
+    // initializing select pol
+    $(document).ready(function() {
+      $('#select_pol').select2({
+        placeholder: 'Cerca politico',
+        allowClear: true
+      });
+    });
+
+    // initializing politicians/political group list
+    const select_pol = document.getElementById("select_pol");
+    function handleOptionChange(radio) {
+        while (select_pol.options.length > 0) {
+          select_pol.remove(0);
+        }
+        const o = document.createElement("option");
+        select_pol.appendChild(o);
+        if (radio.value == 'politician'){
+            fetchData("/v1/politicians").then(result => {
+                result["politicians"].forEach(valore => {
+                    const option = document.createElement("option");
+                    option.value = valore;
+                    option.textContent = valore;
+                    select_pol.appendChild(option);
+                });
+            })
+        } else if (radio.value == 'political_group'){
+            fetchData("/v1/political_groups").then(result => {
+                result["political_groups"].forEach(valore => {
+                    const option = document.createElement("option");
+                    option.value = valore;
+                    option.textContent = valore;
+                    select_pol.appendChild(option);
+                });
+            })
+        }
+    }
+
+
+    // initialize dates
+    const start_date = document.getElementById("start_date");
+    const end_date = document.getElementById("end_date");
+
+    fetchData("/v1/dates").then(result => {
+      start_date.value = result["first_date"];
+      start_date.min = result["first_date"];
+      start_date.max = result["end_date"];
+      end_date.value = result["end_date"];
+      end_date.min = result["first_date"];
+      end_date.max = result["end_date"];
+    })
+
+    async function limitEndDate(){
+        end_date.min = start_date.value;
+        if(Number(end_date.value.split('-')[0]) < Number(start_date.value.split('-')[0]) ||
+          (Number(end_date.value.split('-')[0]) == Number(start_date.value.split('-')[0]) &&
+          Number(end_date.value.split('-')[1]) < Number(start_date.value.split('-')[1])) ||
+          (Number(end_date.value.split('-')[1]) == Number(start_date.value.split('-')[1]) &&
+          Number(end_date.value.split('-')[2]) < Number(start_date.value.split('-')[2]))){
+            end_date.value = start_date.value;  
+        }
+    }
+
+
+    // change checkbox type
+    var cb = "both";
+    async function changeType(){
+      const news = document.getElementById("news");
+      const speech = document.getElementById("speech");
+      if (news.checked == true && speech.checked == true){
+        cb = "both";
+      }else if (news.checked == true){
+        cb = "news";
+      }else if (speech.checked == true){
+        cb = "speech";
+      }else{
+        cb = "none";
+      }
+    }
+
+    // Line Chart
+    async function lineChart(){
+      const p = document.getElementById("politician");
+      const pg = document.getElementById("political_group");
+      if(p.checked == true){
+        var t = "/v1/politicianTopics/";
+      }else if(pg.checked == true){
+        var t = "/v1/polGroupTopics/";
+      }
+      const url = t + select_pol.value + 
+                  "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
+                  "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
+                  "&kind_=" + cb;
+      fetchData(url).then(result => {
+        var myChart = echarts.init(document.getElementById('main'));
+        var topics = [];
+        var minutes = [];
+        for(let i = 0; i < result["topics"].length; i++){
+          topics.push(result["topics"][i]["topic"])
+          minutes.push(result["topics"][i]["interventions"])
+        }
+        option = {
+          xAxis: {
+            type: 'category',
+            data: topics
+          },
+          yAxis: {
+            type: 'value'
+          },
+          series: [
+            {
+              data: minutes,
+              type: 'bar'
+            }
+          ]
+        };
+        myChart.setOption(option);
+      })
+    }
+
+
   </script>
 </body>
 

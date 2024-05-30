@@ -1,6 +1,13 @@
-form{
-    border: solid;
+.searchPol{
+    width: 30%;
 }
 body{
     background-color: aliceblue;
+}
+form{
+    width: 30%;
+}
+select{
+    width: 30%;
+    border: solid;
 }
