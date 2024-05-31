@@ -223,7 +223,7 @@ async def get_politician_channels(
                            "minutes" : total[0],
                            "interventions" : interventions })
 
-    return { "political group": name, "topics": final_list }
+    return { "politician": name, "channels": final_list }
 
 
 @app.get("/v1/polGroupChannels/{name}")
@@ -321,42 +321,71 @@ async def get_dates():
 
 # -------------------------------------------------------
 
-# @app.get("/v1/interventionsPoliticianPerYear/{name}")
-# async def get_interventions_politician_per_year(
-#     name: str,
-#     start_date_: str = Query(default = start_date, description="Start date"),
-#     end_date_: str = Query(default = end_date, description="End date"),
-#     kind_: str = Query(default = "both" , description="Type of data", enum = kind)
-# ):
-#     """
-#     Return how much a politician has intervened in tv every year
-#     (counting also politicians single intervents)
-#     """
+@app.get("/v1/interventionsPoliticianPerYear/{name}")
+async def get_interventions_politician_per_year(
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+):
+    """
+    Return how much a politician has intervened in tv per year
+    """
 
-#     interventions_politician = politicians.filter(pl.col('fullname') == name)
-#     interventions_politician = filter_data(interventions_politician, start_date_, end_date_, kind_)
+    interventions_politician = data.filter(pl.col('fullname') == name)
+    interventions_politician = filter_data(interventions_politician, start_date_, end_date_, kind_)
 
-#     first_year = int(start_date_.split('-')[2])
-#     last_year = int(end_date_.split('-')[2])
+    first_year = int(start_date_.split('/')[0])
+    last_year = int(end_date_.split('/')[0])
 
-#     final_years = []
-#     fy = []
+    years = []
+    interventions = []
+    minutes = []
 
-#     while first_year < last_year:
-#         data_inizio = datetime.date(first_year, 1, 1)
-#         data_fine = datetime.date(first_year, 12, 31)
-#         delta = data_fine - data_inizio
+    while first_year != (last_year + 1):
+        fy = datetime.strptime(str(first_year), '%Y')
+        ly = datetime.strptime(str(first_year + 1), '%Y')
+        a = interventions_politician.filter(pl.col('day') >= fy)
+        a = a.filter(pl.col('day') <= ly)
+        years.append(str(first_year))
+        interventions.append(a.shape[0])
+        minutes.append(a.select('duration').sum().to_series().to_list()[0])
+        first_year += 1
 
-#         for i in range(delta.days + 1):
-#             giorno_corrente = data_inizio + datetime.timedelta(days=i)
-#             t = interventions_politician.filter(pl.col('day') == giorno_corrente)
-#             total = t.select('duration').sum().to_series().to_list()
-#             l = [giorno_corrente, total]
-#             fy.append(l)
-
-#         final_years.append(fy)
-#         fy.clear()
-#         first_year += 1
+    return { "politician": name, "years": years,
+            "interventions": interventions, "minutes": minutes }
 
 
-#     return { "years": final_years }
+@app.get("/v1/interventionsPoliticalGroupPerYear/{name}")
+async def get_interventions_political_group_per_year(
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+):
+    """
+    Return how much a political group has intervened in tv per year
+    """
+
+    interventions_polgroup = data.filter(pl.col('lastname') == name)
+    interventions_polgroup = filter_data(interventions_polgroup, start_date_, end_date_, kind_)
+
+    first_year = int(start_date_.split('/')[0])
+    last_year = int(end_date_.split('/')[0])
+
+    years = []
+    interventions = []
+    minutes = []
+
+    while first_year != (last_year + 1):
+        fy = datetime.strptime(str(first_year), '%Y')
+        ly = datetime.strptime(str(first_year + 1), '%Y')
+        a = interventions_polgroup.filter(pl.col('day') >= fy)
+        a = a.filter(pl.col('day') <= ly)
+        years.append(first_year)
+        interventions.append(a.shape[0])
+        minutes.append(a.select('duration').sum().to_series().to_list()[0])
+        first_year += 1
+
+    return { "political group": name, "years": years,
+            "interventions": interventions, "minutes": minutes }
