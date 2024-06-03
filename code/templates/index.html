@@ -2,25 +2,27 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="../static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"/>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"/>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 </head>
+
+
 
 <body>
   <div class="searchPol">
-    <form>
+    <form id="form_pol">
       <input type="radio" id="politician" value="politician" name="choose_pol" onclick="handleOptionChange(this)">
       <label for="politician">Politician</label><br>
       <input type="radio" id="political_group" value="political_group" name="choose_pol" onclick="handleOptionChange(this)">
       <label for="political_group">Political Group</label>
     </form>
-    <select id="select_pol" style="width: 100%;">
+    <select id="select_pol" style="width: 100%;" multiple="multiple">
       <option></option>
     </select>
   </div>
@@ -37,39 +39,31 @@
     </form>
   </div>
 
-  <button onclick="barChart()">Bar Chart</button>
-  <button onclick="pieChart()">Pie Chart</button>
-  <button onclick="lineChart()">Line Chart</button>
+  <button id='barChartButton' onclick="barChart()">Bar Chart</button>
+  <button id='pieChartButton'onclick="pieChart()">Pie Chart</button>
+  <button id='lineChartButton'onclick="lineChart()">Line Chart</button>
+  <button id='radarChartButton'onclick="radarChart()">Radar Chart</button>
   
-  <br>
-  <select id="select_pol2" style="width: 30%;">
-    <option></option>
-  </select><br>
-  <select id="select_pol3" style="width: 30%;">
-    <option></option>
-  </select><br>
-  <select id="select_pol4" style="width: 30%;">
-    <option></option>
-  </select>
 
   <div id="barChart" style="width: 1000px; height:600px; display: none;"></div>
   <div id="pieChart" style="width: 1000px; height:600px; display: none;"></div>
   <div id="lineChart" style="width: 1000px; height:600px; display: none;"></div>
+  <div id="radarChart" style="width: 1000px; height:600px; display: none;"></div>
 
   <script>
 
     //function to call APIs passing url
     async function fetchData(url) {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Errore nel recupero dei dati:', error);
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
         }
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('Errore nel recupero dei dati:', error);
+      }
     }
     
 
@@ -77,60 +71,68 @@
     $(document).ready(function() {
       $('#select_pol').select2({
         placeholder: 'Cerca politico',
-        allowClear: true
+        allowClear: true,
+        maximumSelectionLength: 1
       });
-      $('#select_pol2').select2({
-        placeholder: 'Cerca politico',
-        allowClear: true
-      });
-      $('#select_pol3').select2({
-        placeholder: 'Cerca politico',
-        allowClear: true
-      });
-      $('#select_pol4').select2({
-        placeholder: 'Cerca politico',
-        allowClear: true
-      });
+      $('#barChartButton').click(function() {
+        $('#select_pol').select2({
+          maximumSelectionLength: 1
+        });
+        if($('#select_pol').val().length != 0){
+          temp = $('#select_pol').val()[0];
+          $('#select_pol').val([temp]).trigger('change');
+        }
+      })
+      $('#pieChartButton').click(function() {
+        $('#select_pol').select2({
+          maximumSelectionLength: 1
+        });
+        if($('#select_pol').val().length != 0){
+          temp = $('#select_pol').val()[0];
+          $('#select_pol').val([temp]).trigger('change');
+        }
+      })
+      $('#lineChartButton').click(function() {
+        $('#select_pol').select2({
+          maximumSelectionLength: 4
+        });
+      })
+      $('#radarChartButton').click(function() {
+        $('#select_pol').select2({
+          maximumSelectionLength: 4
+        });
+      })
     });
 
-    async function createSelect(selectIds, options){
-      selectIds.forEach(function(id) {
-        var selectElement = document.getElementById(id);
-        options.forEach(function(option) {
-            var optionElement = document.createElement("option");
-            optionElement.value = option;
-            optionElement.text = option;
-            selectElement.appendChild(optionElement);
-        });
-    });
-    }
 
     // initializing politicians/political group list (select)
     const select_pol = document.getElementById("select_pol");
-    var selectIds = ['select_pol', 'select_pol2', 'select_pol3', 'select_pol4'];
     function handleOptionChange(radio) {
       var options = [];
-        while (select_pol.options.length > 0) {
-          select_pol.remove(0);
-        }
-        const o = document.createElement("option");
-        select_pol.appendChild(o);
-        if (radio.value == 'politician'){
-            fetchData("/v1/politicians").then(result => {
-                result["politicians"].forEach(valore => {
-                    options.push(valore);
-                });
-                createSelect(selectIds, options);
-            })
-        } else if (radio.value == 'political_group'){
-            fetchData("/v1/political_groups").then(result => {
-                result["political_groups"].forEach(valore => {
-                    options.push(valore)
-                    createSelect(selectIds, options);
-                });
-            })
-        }
-
+      while (select_pol.options.length > 0) {
+        select_pol.remove(0);
+      }
+      const o = document.createElement("option");
+      select_pol.appendChild(o);
+      if (radio.value == 'politician'){
+        fetchData("/v1/politicians").then(result => {
+          result["politicians"].forEach(valore => {
+            var option = document.createElement("option");
+            option.value = valore;
+            option.text = valore;
+            select_pol.appendChild(option);
+          });
+        })
+      } else if (radio.value == 'political_group'){
+        fetchData("/v1/political_groups").then(result => {
+          result["political_groups"].forEach(valore => {
+            var option = document.createElement("option");
+            option.value = valore;
+            option.text = valore;
+            select_pol.appendChild(option);
+          });
+        })
+      }
     }
 
 
@@ -148,14 +150,14 @@
     })
 
     async function limitEndDate(){
-        end_date.min = start_date.value;
-        if(Number(end_date.value.split('-')[0]) < Number(start_date.value.split('-')[0]) ||
-          (Number(end_date.value.split('-')[0]) == Number(start_date.value.split('-')[0]) &&
-          Number(end_date.value.split('-')[1]) < Number(start_date.value.split('-')[1])) ||
-          (Number(end_date.value.split('-')[1]) == Number(start_date.value.split('-')[1]) &&
-          Number(end_date.value.split('-')[2]) < Number(start_date.value.split('-')[2]))){
-            end_date.value = start_date.value;  
-        }
+      end_date.min = start_date.value;
+      if(Number(end_date.value.split('-')[0]) < Number(start_date.value.split('-')[0]) ||
+        (Number(end_date.value.split('-')[0]) == Number(start_date.value.split('-')[0]) &&
+        Number(end_date.value.split('-')[1]) < Number(start_date.value.split('-')[1])) ||
+        (Number(end_date.value.split('-')[1]) == Number(start_date.value.split('-')[1]) &&
+        Number(end_date.value.split('-')[2]) < Number(start_date.value.split('-')[2]))){
+        end_date.value = start_date.value;  
+      }
     }
 
 
@@ -178,17 +180,18 @@
 
     // Bar Chart
     async function barChart(){
+      if($('#select_pol').val().length == 0){ return 0; }
       document.getElementById('pieChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
+      document.getElementById('radarChart').style.display = "none";
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
         var t = "/v1/politicianTopics/";
       }else if(pg.checked == true){
         var t = "/v1/polGroupTopics/";
-      }
-      
-      const url = t + select_pol.value + 
+      } else { return 0; }
+      const url = t + $('#select_pol').val()[0] + 
                   "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
                   "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
                   "&kind_=" + cb;
@@ -226,32 +229,34 @@
               data: minutes,
               type: 'bar',
               emphasis: {
-              itemStyle: {
-                shadowBlur: 10,
-                shadowOffsetX: 0,
-                shadowColor: 'rgba(0, 0, 0, 0.5)'
+                itemStyle: {
+                  shadowBlur: 10,
+                  shadowOffsetX: 0,
+                  shadowColor: 'rgba(0, 0, 0, 0.5)'
+                }
               }
-            }
             }
           ]
         };
         barChart.setOption(option);
-      })
+      });
     }
 
 
     // Pie Chart
     async function pieChart(){
+      if($('#select_pol').val().length == 0){ return 0; }
       document.getElementById('barChart').style.display = "none";
       document.getElementById('lineChart').style.display = "none";
+      document.getElementById('radarChart').style.display = "none";
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
         var t = "/v1/politicianChannels/";
       }else if(pg.checked == true){
         var t = "/v1/polGroupChannels/";
-      }
-      const url = t + select_pol.value + 
+      } else { return 0; }
+      const url = t + $('#select_pol').val()[0] + 
                   "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
                   "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
                   "&kind_=" + cb;
@@ -296,74 +301,220 @@
         ]
       };
       pieChart.setOption(option);
-      })
+      });
     }
 
 
     // Line chart
     async function lineChart(){
+      if($('#select_pol').val().length == 0){ return 0; }
       document.getElementById('barChart').style.display = "none";
       document.getElementById('pieChart').style.display = "none";
+      document.getElementById('radarChart').style.display = "none";
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
         var t = "/v1/interventionsPoliticianPerYear/";
-      }else if(pg.checked == true){
+      } else if (pg.checked == true){
         var t = "/v1/interventionsPoliticalGroupPerYear/";
-      }
+      } else { return 0; }
       var series = [];
       var years;
-      selectIds.forEach(function(id) {
-        var selectElement = document.getElementById(id);
-        if(selectElement.value != ""){
-          const url = t + selectElement.value + 
-                    "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
-                    "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
-                    "&kind_=" + cb;
-          fetchData(url).then(result => {
-            years = result["years"];
-            var interventions = result["interventions"];
-            var minutes = result["minutes"];
-            series.push(interventions);
-          });
-        }else{series.push([0])}
+      var politicians = []
+      $('#select_pol').val().forEach(function(value) {
+        const url = t + value + 
+                "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
+                "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
+                "&kind_=" + cb;
+        fetchData(url).then(result => {
+          years = result["years"];
+          var interventions = result["interventions"];
+          series.push(interventions);
+          if(p.checked == true){ 
+            politicians.push(result["politician"])
+          } else if (pg.checked == true){ 
+            politicians.push(result["political group"]) 
+          }
+        });
       });
       setTimeout(() => {
-      var lC = document.getElementById('lineChart');
-      lC.style.display = "block";
-      var lineChart = echarts.init(lC);
-      option = {
-        xAxis: {
-          type: 'category',
-          data: years
-        },
-        yAxis: {
-          type: 'value'
-        },
-        tooltip: {
-          trigger: 'item'
-        },
-        series: [
-          {
-            data: series[0],
-            type: 'line'
+        var lC = document.getElementById('lineChart');
+        lC.style.display = "block";
+        var lineChart = echarts.init(lC);
+        option = {
+          xAxis: {
+            type: 'category',
+            data: years
           },
-          {
-            data: series[1],
-            type: 'line'
+          yAxis: {
+            type: 'value'
           },
-          {
-            data: series[2],
-            type: 'line'
+          title: {
+            text: 'Intervention per year',
+            subtext: 'Here we can analyze the interventions throughout the years',
+            left: 'center',
           },
-          {
-            data: series[3],
-            type: 'line'
+          legend: {
+            data: politicians,
+            left: 'right',
+            orient: 'vertical',
+            formatter: function(name) {
+              if (name.length > 35) {
+                var index = 35;
+                  while (name.charAt(index) !== ' ' && index > 0) {
+                      index--;
+                  }
+                  if (index === 0) {
+                      index = 35; 
+                  }
+                  return name.substr(0, index) + '\n' + name.substr(index);
+              } else {
+                  return name;
+              }
+            }
+          },
+          tooltip: {
+            trigger: 'item'
+          },
+          series: [
+            {
+              name: politicians[0],
+              data: series[0],
+              type: 'line'
+            },
+            {
+              name: politicians[1],
+              data: series[1],
+              type: 'line'
+            },
+            {
+              name: politicians[2],
+              data: series[2],
+              type: 'line'
+            },
+            {
+              name: politicians[3],
+              data: series[3],
+              type: 'line'
+            }
+          ]
+        };
+        lineChart.setOption(option);
+      }, 500);
+    }
+
+
+    // Radar Chart
+    async function radarChart(){
+      if($('#select_pol').val().length == 0){ return 0; }
+      document.getElementById('barChart').style.display = "none";
+      document.getElementById('pieChart').style.display = "none";
+      document.getElementById('lineChart').style.display = "none";
+      const p = document.getElementById("politician");
+      const pg = document.getElementById("political_group");
+      if(p.checked == true){
+        var t = "/v1/politicianTopics/";
+      }else if(pg.checked == true){
+        var t = "/v1/polGroupTopics/";
+      } else { return 0; }
+      var politicians = [];
+      var values = [];
+      $('#select_pol').val().forEach(function(value) {
+        const url = t + value + 
+                  "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
+                  "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
+                  "&kind_=" + cb;
+        fetchData(url).then(result => {
+          if(p.checked == true){
+            politicians.push(result["politician"]);
+          }else if(pg.checked == true){
+            politicians.push(result["political group"]);
           }
-        ]
-      };
-      lineChart.setOption(option);
-    }, 500);
+            values.push(result["topics"]);
+        });
+      });
+      setTimeout(() => {
+        var minutes = [];
+        var topics = [];
+        var max_value = [];
+        values.forEach(function(value) {
+          var temp = [];
+          value.forEach(function(v) {
+            temp.push(v["minutes"]);
+          });
+          minutes.push(temp);
+        });
+        max_min = [];
+        values[0].forEach(function(t) {
+          topics.push(t["topic"]);
+          max_min.push(0)
+        });
+        
+        values.forEach(function(data) {
+          var i = 0;
+          data.forEach(function(x) {
+            if(max_min[i] < x["minutes"]){
+              max_min[i] = x["minutes"] + x["minutes"]/5;
+            }
+            i++;
+          });
+        });
+        var rC = document.getElementById('radarChart');
+        rC.style.display = "block";
+        var radarChart = echarts.init(rC);
+        var indicator = [];
+        var data = [];
+        topics.forEach(function(f, index){
+          indicator.push({name: f, max: max_min[index]})
+        });
+        politicians.forEach(function(p, index){
+          data.push({name: p, value: minutes[index]})
+        });
+        option = {
+          title: {
+            text: 'Minutes of speaking',
+            subtext: 'Here we can analyze how much a politician/poolitical group talks about a topic',
+            left: 'center',
+          },
+          legend: {
+            data: politicians,
+            left: 'left',
+            orient: 'vertical',
+            formatter: function(name) {
+              if (name.length > 35) {
+                var index = 35;
+                  while (name.charAt(index) !== ' ' && index > 0) {
+                      index--;
+                  }
+                  if (index === 0) {
+                      index = 35; 
+                  }
+                  return name.substr(0, index) + '\n' + name.substr(index);
+              } else {
+                  return name;
+              }
+            }
+          },
+          tooltip: {
+            trigger: 'item'
+          },
+          radar: {
+            shape: 'circle',
+            indicator: indicator,
+            center: ['50%', '55%']
+          },
+          series: [
+            {
+              name: 'Minutes politicians',
+              type: 'radar',
+              data: data
+            }
+          ]
+        };
+
+
+        radarChart.setOption(option);
+      }, 500);
     }
 
   </script>
