@@ -5,6 +5,7 @@ import polars as pl
 import os
 import warnings
 from datetime import datetime
+import datetime as dt
 import calendar
 warnings.filterwarnings('ignore')
 
@@ -389,3 +390,96 @@ async def get_interventions_political_group_per_year(
 
     return { "political group": name, "years": years,
             "interventions": interventions, "minutes": minutes }
+
+# -------------------------------------------------------
+
+@app.get("/v1/interventionsPoliticianPerDay/{name}")
+async def get_interventions_politician_per_day(
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+):
+    """
+    Return how much a politician has intervened in tv per year
+    """
+
+    interventions_politician = data.filter(pl.col('fullname') == name)
+    interventions_politician = filter_data(interventions_politician, start_date_, end_date_, kind_)
+
+    begin_date = dt.date(int(start_date_.split('/')[0]),
+                         int(start_date_.split('/')[1]),
+                         int(start_date_.split('/')[2]))
+    b = begin_date
+    final_date = dt.date(int(end_date_.split('/')[0]),
+                         int(end_date_.split('/')[1]),
+                         int(end_date_.split('/')[2]))
+    day = dt.timedelta(1)
+    year = begin_date.year
+    interventions = []
+    i = []
+    max_value = 0
+
+    while begin_date != final_date:
+        if begin_date.year != year:
+            interventions.append(i)
+            year = year + 1
+            for j in i:
+                if max_value < j[1]:
+                    max_value = j[1]
+            i = []
+        else:
+            d = datetime.strptime(str(begin_date), "%Y-%m-%d")
+            temp = interventions_politician.filter(pl.col("day") == d)
+            i.append([begin_date, temp.shape[0]])
+            begin_date = begin_date + day
+    interventions.append(i)
+
+    return { "interventions": interventions, "max_value": max_value,
+            "begin year": b.year, "final year": final_date.year}
+
+
+@app.get("/v1/interventionsPoliticalGroupPerDay/{name}")
+async def get_interventions_political_group_per_day(
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+):
+    """
+    Return how much a political group has intervened in tv per year
+    """
+
+    interventions_polgroup = data.filter(pl.col('lastname') == name)
+    interventions_polgroup = filter_data(interventions_polgroup, start_date_, end_date_, kind_)
+
+    begin_date = dt.date(int(start_date_.split('/')[0]),
+                         int(start_date_.split('/')[1]),
+                         int(start_date_.split('/')[2]))
+    b = begin_date
+    final_date = dt.date(int(end_date_.split('/')[0]),
+                         int(end_date_.split('/')[1]),
+                         int(end_date_.split('/')[2]))
+    day = dt.timedelta(1)
+    year = begin_date.year
+    interventions = []
+    i = []
+    max_value = 0
+
+    while begin_date != final_date:
+        if begin_date.year != year:
+            interventions.append(i)
+            year = year + 1
+            for j in i:
+                if max_value < j[1]:
+                    max_value = j[1]
+            i = []
+        else:
+            d = datetime.strptime(str(begin_date), "%Y-%m-%d")
+            temp = interventions_polgroup.filter(pl.col("day") == d)
+            i.append([begin_date, temp.shape[0]])
+            begin_date = begin_date + day
+    interventions.append(i)
+
+    return { "interventions": interventions, "max_value": max_value,
+            "begin year": b.year, "final year": final_date.year}
