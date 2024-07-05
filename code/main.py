@@ -59,7 +59,36 @@ def filter_data(data_, start_date_, end_date_, kind_):
 
 # -------------------------------------------------------
 
-app = FastAPI()
+description = """
+## AGCOM - elementary data of the italian television monitoring
+
+This API provides the possibility to query the elementary televised monitoring data provided by [AGCOM](https://www.agcom.it/) - Italian authority for guarantees in communications - of political interventions (data as news or as word)
+
+The data can be found in XML format at [https://www.agcom.it/dati-elementari-di-monitoraggio-televisivo](https://www.agcom.it/dati-elementari-di-monitoraggio-televisivo)
+
+Period:<br/>
+from **%s** to **%s**
+
+
+The license under which the data is released by AGCOM is CC-BY-SA-NC
+
+![](https://www.agcom.it/documents/10179/4502194/Logo+Creative+common/2e1fe5a2-4324-4965-b8af-76403bb42b15?t=1618583317352)
+
+""" % (start_date, end_date)
+
+app = FastAPI(
+    title="AGCOM - dati elementari di monitoraggio televisivo",
+    description=description,
+    version="0.0.1",
+    contact={
+        "name": "Merak",
+        "email": "merakwinston.hall@gmail.com",
+    },
+    license_info={
+        "name": "data under cc-by-nc-sa",
+        "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    },
+)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -401,7 +430,7 @@ async def get_interventions_politician_per_day(
     kind_: str = Query(default = "both" , description="Type of data", enum = kind)
 ):
     """
-    Return how much a politician has intervened in tv per year
+    Return how much a politician has intervened in tv per day
     """
 
     interventions_politician = data.filter(pl.col('fullname') == name)
@@ -447,7 +476,7 @@ async def get_interventions_political_group_per_day(
     kind_: str = Query(default = "both" , description="Type of data", enum = kind)
 ):
     """
-    Return how much a political group has intervened in tv per year
+    Return how much a political group has intervened in tv per day
     """
 
     interventions_polgroup = data.filter(pl.col('lastname') == name)
