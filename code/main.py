@@ -435,7 +435,7 @@ async def get_interventions_politician_per_day(
             begin_date = begin_date + day
     interventions.append(i)
 
-    return { "interventions": interventions, "max_value": max_value,
+    return { "politician": name,"interventions": interventions, "max_value": max_value,
             "begin year": b.year, "final year": final_date.year}
 
 
@@ -481,5 +481,5 @@ async def get_interventions_political_group_per_day(
             begin_date = begin_date + day
     interventions.append(i)
 
-    return { "interventions": interventions, "max_value": max_value,
+    return { "political group": name, "interventions": interventions, "max_value": max_value,
             "begin year": b.year, "final year": final_date.year}

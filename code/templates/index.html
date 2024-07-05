@@ -27,8 +27,8 @@
     </select>
   </div>
   <div>
-    <p>from: <input type="date" id="start_date" onchange="limitEndDate(), updateCharts()"/></p>  
-    <p>to: <input type="date"  id="end_date" onchange="updateCharts()"/></p>
+    <p>from: <input type="date" onkeydown="return false;" id="start_date" onchange="limitEndDate(), updateCharts()"/></p>  
+    <p>to: <input type="date" onkeydown="return false;" id="end_date" onchange="updateCharts()"/></p>
   </div>
   <div>
     <form id="cb">
@@ -43,6 +43,7 @@
   <button id='pieChartButton'onclick="pieChart()">Pie Chart</button>
   <button id='calendarChartButton'onclick="calendarChart()">Calendar Chart</button>
   <button id='lineChartButton'onclick="lineChart()">Line Chart</button>
+  <button id='lineChart2Button'onclick="lineChart2()">Line Chart 2</button>
   <button id='radarChartButton'onclick="radarChart()">Radar Chart</button>
   
 
@@ -50,6 +51,7 @@
   <div id="pieChart" style="width: 1000px; height:600px; display: none;"></div>
   <div id="calendarChart" style="width: 1000px; height:1500px; display: none;"></div>
   <div id="lineChart" style="width: 1000px; height:600px; display: none;"></div>
+  <div id="lineChart2" style="width: 1000px; height:600px; display: none;"></div>
   <div id="radarChart" style="width: 1000px; height:600px; display: none;"></div>
 
   <script>
@@ -108,6 +110,11 @@
           maximumSelectionLength: 4
         });
       })
+      $('#lineChart2Button').click(function() {
+        $('#select_pol').select2({
+          maximumSelectionLength: 4
+        });
+      })
       $('#radarChartButton').click(function() {
         $('#select_pol').select2({
           maximumSelectionLength: 4
@@ -126,6 +133,8 @@
         calendarChart();
       }else if(document.getElementById('lineChart').style.display == "block"){
         lineChart();
+      }else if(document.getElementById('lineChart2').style.display == "block"){
+        lineChart2();
       }else if(document.getElementById('radarChart').style.display == "block"){
         radarChart();
       }
@@ -211,6 +220,7 @@
       document.getElementById('pieChart').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
+      document.getElementById('lineChart2').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
@@ -229,24 +239,31 @@
         var barChart = echarts.init(bC);
         var topics = [];
         var minutes = [];
+        var f = [];
         for(let i = 0; i < result["topics"].length; i++){
           if(result["topics"][i]["interventions"] != 0){
-            topics.push(result["topics"][i]["topic"]);
-            minutes.push(result["topics"][i]["interventions"]);
+            var x = [result["topics"][i]["interventions"], result["topics"][i]["topic"]];
+            f.push(x)
           }
         }
+        f.sort((a, b) => a[0] - b[0]);
+        console.log(f);
+        f.forEach(value => {
+          minutes.push(value[0]);
+          topics.push(value[1]);
+        })
         option = {
           title: {
             text: 'Interventions in channel',
             subtext: 'Here we can analyze what type of topic a politician talked about',
             left: 'center'
           },
-          xAxis: {
+          yAxis: {
             type: 'category',
             data: topics,
             axisLabel: false
           },
-          yAxis: {
+          xAxis: {
             type: 'value'
           },
           tooltip: {
@@ -264,7 +281,7 @@
                 }
               }
             }
-          ]
+          ],
         };
         barChart.setOption(option);
       });
@@ -277,6 +294,7 @@
       document.getElementById('barChart').style.display = "none";
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
+      document.getElementById('lineChart2').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
@@ -345,6 +363,7 @@
       document.getElementById('barChart').style.display = "none";
       document.getElementById('pieChart').style.display = "none";
       document.getElementById('lineChart').style.display = "none";
+      document.getElementById('lineChart2').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
@@ -403,6 +422,7 @@
       if($('#select_pol').val().length == 0){ return 0; }
       document.getElementById('barChart').style.display = "none";
       document.getElementById('pieChart').style.display = "none";
+      document.getElementById('lineChart2').style.display = "none";
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('radarChart').style.display = "none";
       const p = document.getElementById("politician");
@@ -431,7 +451,6 @@
           politicians.push(data["political group"]) 
         }
       }
-      console.log(series);
       var lC = document.getElementById('lineChart');
       lC.style.display = "block";
       var lineChart = echarts.init(lC);
@@ -496,6 +515,117 @@
       lineChart.setOption(option);
     }
 
+    async function lineChart2(){
+      if($('#select_pol').val().length == 0){ return 0; }
+      document.getElementById('barChart').style.display = "none";
+      document.getElementById('pieChart').style.display = "none";
+      document.getElementById('calendarChart').style.display = 'none';
+      document.getElementById('lineChart').style.display = "none";
+      document.getElementById('radarChart').style.display = "none";
+      const p = document.getElementById("politician");
+      const pg = document.getElementById("political_group");
+      if (p.checked == true){
+        var t = "/v1/interventionsPoliticianPerDay/";
+      } else if (pg.checked == true){
+        var t = "/v1/interventionsPoliticalGroupPerDay/";
+      } else { return 0; }
+      var series = [];
+      var politicians = [];
+      const selectedValues = $('#select_pol').val();
+      for (const value of selectedValues) {
+        const url = t + value + 
+                "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
+                "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
+                "&kind_=" + cb;
+        const data = await fetchData(url);
+        var interventions = data["interventions"];
+        series.push(interventions);
+        if(p.checked == true){ 
+          politicians.push(data["politician"])
+        } else if (pg.checked == true){ 
+          politicians.push(data["political group"]) 
+        }
+      }
+      series.forEach((pol, index) =>{
+        var f = [];
+        pol.forEach(year => {
+          f = f.concat(year);
+        })
+        series[index] = f;
+      })
+      console.log(series);
+
+      var lC = document.getElementById('lineChart2');
+      lC.style.display = "block";
+      var lineChart = echarts.init(lC);
+      option = {
+        xAxis: {
+          type: 'category',
+        },
+        yAxis: {
+          type: 'value'
+        },
+        title: {
+          text: 'Intervention per year',
+          subtext: 'Here we can analyze the interventions throughout the years',
+          left: 'center',
+        },
+        legend: {
+          data: politicians,
+          left: 'right',
+          orient: 'vertical',
+          formatter: function(name) {
+            if (name.length > 35) {
+              var index = 35;
+                while (name.charAt(index) !== ' ' && index > 0) {
+                    index--;
+                }
+                if (index === 0) {
+                    index = 35; 
+                }
+                return name.substr(0, index) + '\n' + name.substr(index);
+            } else {
+                return name;
+            }
+          }
+        },
+        tooltip: {
+          trigger: 'item'
+        },
+        series: [
+          {
+            name: politicians[0],
+            data: series[0],
+            type: 'line'
+          },
+          {
+            name: politicians[1],
+            data: series[1],
+            type: 'line'
+          },
+          {
+            name: politicians[2],
+            data: series[2],
+            type: 'line'
+          },
+          {
+            name: politicians[3],
+            data: series[3],
+            type: 'line'
+          }
+        ],
+        dataZoom: [
+          {
+            id: 'dataZoomX',
+            type: 'slider',
+            xAxisIndex: [0],
+            filterMode: 'filter'
+          }
+        ]
+      };
+      lineChart.setOption(option);
+    }
+
 
     // Radar Chart
     async function radarChart(){
@@ -504,6 +634,7 @@
       document.getElementById('pieChart').style.display = "none";
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
+      document.getElementById('lineChart2').style.display = "none";
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
