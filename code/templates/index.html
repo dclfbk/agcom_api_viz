@@ -71,6 +71,21 @@
         console.error('Errore nel recupero dei dati:', error);
       }
     }
+
+    //transform a numer in a {hour: h, minutes: m} data type
+    function calcTime(x){
+      var hours = Math.floor(x/60);
+      var minutes = x%60;
+      var str = '';
+      if(hours == 0){
+        str += minutes + " minuti";
+      }else if(hours == 1){
+        str += hours + " ora e " + minutes + " minuti";
+      }else{
+        str += hours + " ore e " + minutes + " minuti";
+      }
+      return str;
+    }
     
 
     // initializing select pol
@@ -356,14 +371,23 @@
         })
         series.push({name: politicians[index], type: 'bar', data: m});
       })
-      option = {
-        title: {
-          text: 'Confront Topic Interventions'
-        },
+      var option = {
         tooltip: {
           trigger: 'axis',
           axisPointer: {
             type: 'shadow'
+          },
+          formatter: function (params) {
+            var result = '';
+            result += '<b>' + params[0].name + '</b>';
+              params.forEach((item, index) => {
+                result += '<div style="display: flex; align-items: center;">';
+                result += '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:' + item.color + ';"></span>';
+                result += params[index].seriesName + ": ";
+                result += calcTime(params[index].data);
+                result += '</div>';
+              });
+            return result;
           }
         },
         legend: {},
@@ -384,9 +408,85 @@
         },
         series: series
       };
-      console.log(series, topics);
       barChart2Instance.setOption(option);
       barChart2Instance.hideLoading();
+      var removedElements = [];
+      var removedTopics = [];
+      var removedIndex = [];
+      var counter = 0;
+
+      barChart2Instance.on("click", function(p) {
+        if(p.componentType == 'series'){
+          counter ++;
+          var t;
+          var tempList = [];
+          series.forEach((v) => {
+            if(v["data"].indexOf(p.data) != -1){
+              t = v["data"].indexOf(p.data);
+            }
+          })
+          series.forEach((v, index) => {
+            tempList.push(v["data"][t]);
+            v["data"].splice(t, 1);
+            series[index] = v;
+          })
+          removedIndex.push(t);
+          removedTopics.push(topics[t]);
+          topics.splice(t, 1);
+          removedElements.push(tempList);
+          var option2 = {
+            tooltip: {
+              trigger: 'axis',
+              axisPointer: {
+                type: 'shadow'
+              }
+            },
+            legend: {},
+            grid: {
+              left: '3%',
+              right: '4%',
+              bottom: '3%',
+              containLabel: true
+            },
+            yAxis: {
+              type: 'value',
+              boundaryGap: [0, 0.01]
+            },
+            xAxis: {
+              type: 'category',
+              data: topics,
+              show: false
+            },
+            series: series,
+            graphic: [
+              {
+                type: 'text',
+                left: 50,
+                top: 20,
+                style: {
+                  text: 'Back',
+                  fontSize: 18
+                },
+                onclick: function () {
+                  if(counter > 0){
+                    var rt = removedTopics.splice(removedTopics.length - 1, 1);
+                    var re = removedElements.splice(removedElements.length - 1, 1);
+                    var ri = removedIndex.splice(removedIndex.length - 1, 1);
+                    topics.splice(ri[0], 0, rt[0]);
+                    series.forEach((ser, index) => {
+                      ser["data"].splice(ri[0], 0, re[0][index]);
+                    })
+                    option.series = series;
+                    barChart2Instance.setOption(option);
+                    counter --;
+                  }
+                }
+              }
+            ]
+          };
+          barChart2Instance.setOption(option2);
+        }
+      })
     }
 
 
