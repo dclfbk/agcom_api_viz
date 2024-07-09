@@ -53,6 +53,7 @@
   <div id="barChart2" style="width: 1000px; height:600px; display: none;"></div>
   <div id="pieChart" style="width: 1000px; height:600px; display: none;"></div>
   <div id="pieChart2" style="width: 1000px; height:600px; display: none;"></div>
+  <div id="stackedBarChart" style="width: 1000px; height:1600px; display: none;"></div>
   <div id="calendarChart" style="width: 1000px; height:1500px; display: none;"></div>
   <div id="lineChart" style="width: 1000px; height:600px; display: none;"></div>
   <div id="lineChart2" style="width: 1000px; height:600px; display: none;"></div>
@@ -212,6 +213,10 @@
     // initialize dates
     const start_date = document.getElementById("start_date");
     const end_date = document.getElementById("end_date");
+    var TOPICS;
+    fetchData("/v1/topics").then(result => {
+      TOPICS = result;
+    });
 
     fetchData("/v1/dates").then(result => {
       start_date.value = result["first_date"];
@@ -257,6 +262,7 @@
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = 'none';
       document.getElementById('pieChart2').style.display = 'none';
+      document.getElementById('stackedBarChart').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
@@ -339,6 +345,7 @@
       document.getElementById('barChart').style.display = 'none';
       document.getElementById('pieChart').style.display = 'none';
       document.getElementById('pieChart2').style.display = 'none';
+      document.getElementById('stackedBarChart').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
@@ -511,6 +518,7 @@
       document.getElementById('barChart').style.display = "none";
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart2').style.display = 'none';
+      document.getElementById('stackedBarChart').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
@@ -579,6 +587,7 @@
       document.getElementById('barChart').style.display = "none";
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = 'none';
+      document.getElementById('stackedBarChart').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
@@ -591,8 +600,11 @@
       const pg = document.getElementById("political_group");
       if(p.checked == true){
         var t = "/v1/politicianChannels/";
+        var t2 = "/v1/politicianChannelsPrograms/"
+        var t3 = "/v1/channelProgramsPolitician/"
       }else if(pg.checked == true){
         var t = "/v1/polGroupChannels/";
+        var t2 = "/v1/polGroupChannelsPrograms/"
       } else { return 0; }
       const url = t + $('#select_pol').val()[0] + 
                   "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
@@ -651,6 +663,77 @@
       };
       pieChart.setOption(option);
       pieChart.hideLoading();
+      pieChart.on("click", function(p) {
+        console.log(p);
+        const url3 = t3 + encodeURIComponent($('#select_pol').val()[0]) + "/" + 
+                  encodeURIComponent(p.data.name) +
+                  "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
+                  "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
+                  "&kind_=" + cb;
+        fetchData(url3).then(result => {
+          var sbC = document.getElementById('stackedBarChart');
+          sbC.style.display = "block";
+          var stackedBarChart = echarts.init(sbC);
+          stackedBarChart.showLoading();
+          var y = [];
+          result.programs.forEach((r) => {
+            y.push(r.program);
+          });
+          var series3 = [];
+          var legenda = {};
+          TOPICS.topics.forEach((t) => {
+            var programValue = [];
+            result.programs.forEach((r, index) => {
+              var found = false;
+              r.topics.forEach(rt => {
+                if(rt.topic == t){
+                  programValue.push(rt.minutes);
+                  found = true;
+                }
+              });
+              if(found == false){
+                programValue.push(undefined);
+              }
+            });
+            if(programValue.some(element => element !== undefined)){
+              series3.push({name: t, type: 'bar', stack: 'total',
+                            emphasis: { focus: 'series' },
+                            data: programValue });
+              legenda[t] = false;
+            }
+          });
+          option3 = {
+            title: {
+              text: result.channel
+            },
+            tooltip: {
+              trigger: 'axis',
+              axisPointer: {
+                type: 'shadow' 
+              }
+            },
+            legend: {
+              selected: legenda   /// remove if you want the bars to be shown
+            },
+            grid: {
+              left: '3%',
+              right: '4%',
+              bottom: '3%',
+              containLabel: true
+            },
+            xAxis: {
+              type: 'value'
+            },
+            yAxis: {
+              type: 'category',
+              data: y
+            },
+            series: series3
+          };
+          stackedBarChart.setOption(option3)
+          stackedBarChart.hideLoading();
+        })
+      });
     }
 
 
@@ -666,6 +749,7 @@
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = "none";
       document.getElementById('pieChart2').style.display = 'none';
+      document.getElementById('stackedBarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
@@ -730,6 +814,7 @@
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = "none";
       document.getElementById('pieChart2').style.display = 'none';
+      document.getElementById('stackedBarChart').style.display = 'none';
       document.getElementById('lineChart2').style.display = "none";
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('radarChart').style.display = "none";
@@ -831,6 +916,7 @@
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = "none";
       document.getElementById('pieChart2').style.display = 'none';
+      document.getElementById('stackedBarChart').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
@@ -946,6 +1032,7 @@
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = "none";
       document.getElementById('pieChart2').style.display = 'none';
+      document.getElementById('stackedBarChart').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";

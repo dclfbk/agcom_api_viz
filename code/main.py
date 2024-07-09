@@ -534,7 +534,8 @@ async def get_politician_channels_programs(
             p1 = single_program.select('program').unique().to_series().to_list()
             total = single_program.select('duration').sum().to_series().to_list()
             temp.append({'program': p1[0], 'minutes': total[0]})
-        final_list.append({'channel': single_channel.select('channel').unique().to_series().to_list()[0], 'programs': temp})
+        final_list.append({'channel': single_channel.select('channel').unique()
+                           .to_series().to_list()[0], 'programs': temp})
 
     return { "politician": name, "channels": final_list }
 
@@ -565,7 +566,8 @@ async def get_political_group_channels_programs(
             p1 = single_program.select('program').unique().to_series().to_list()
             total = single_program.select('duration').sum().to_series().to_list()
             temp.append({'program': p1[0], 'minutes': total[0]})
-        final_list.append({'channel': single_channel.select('channel').unique().to_series().to_list()[0], 'programs': temp})
+        final_list.append({'channel': single_channel.select('channel').unique()
+                           .to_series().to_list()[0], 'programs': temp})
 
     return { "political group": name, "channels": final_list }
 
@@ -599,7 +601,8 @@ async def get_channel_programs_politician(
             t1 = single_topic.select('topic').unique().to_series().to_list()
             total = single_topic.select('duration').sum().to_series().to_list()
             temp.append({'topic': t1[0], 'minutes': total[0]})
-        final_list.append({'program': single_program.select('program').unique().to_series().to_list()[0], 'topics': temp})
+        final_list.append({'program': single_program.select('program').unique()
+                           .to_series().to_list()[0], 'topics': temp})
 
     return { "politician": name, "channel": channel, "programs": final_list }
 
@@ -632,6 +635,7 @@ async def get_channel_programs_political_group(
             t1 = single_topic.select('topic').unique().to_series().to_list()
             total = single_topic.select('duration').sum().to_series().to_list()
             temp.append({'topic': t1[0], 'minutes': total[0]})
-        final_list.append({'program': single_program.select('program').unique().to_series().to_list()[0], 'topics': temp})
+        final_list.append({'program': single_program.select('program').unique()
+                           .to_series().to_list()[0], 'topics': temp})
 
     return { "political group": name, "channel": channel, "programs": final_list }
