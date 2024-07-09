@@ -268,6 +268,7 @@ async def get_political_group_channels(
     """
     polgroup_channels = political_groups.filter(pl.col('lastname') == name)
     polgroup_channels = filter_data(polgroup_channels, start_date_, end_date_, kind_)
+
     final_list = []
 
     for c in channels:
@@ -285,15 +286,11 @@ async def get_political_group_channels(
 @app.get("/v1/politiciansAffiliation/{name}")
 async def get_politicians_affiliation(
     name: str,
-    start_date_: str = Query(default = start_date, description="Start date"),
-    end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
 ):
     """
     Return how many politicians participate (have participated) in an affiliation
     """
     politicians_affiliation = politicians.filter(pl.col('affiliation') == name)
-    politicians_affiliation = filter_data(politicians_affiliation, start_date_, end_date_, kind_)
     final_list = politicians_affiliation.select('fullname').unique().to_series().to_list()
 
     return { "affiliation": name, "politicians": final_list }
@@ -302,16 +299,12 @@ async def get_politicians_affiliation(
 @app.get("/v1/affiliationsPolitician/{name}")
 async def get_affiliations_politician(
     name: str,
-    start_date_: str = Query(default = start_date, description="Start date"),
-    end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
 ):
     """
     Return how many affiliations a politician have participated in
     """
 
     affiliations_politician = politicians.filter(pl.col('fullname') == name)
-    affiliations_politician = filter_data(affiliations_politician, start_date_, end_date_, kind_)
     final_list = affiliations_politician.select('affiliation').unique().to_series().to_list()
 
     return { "politician": name, "affiliations": final_list}
@@ -512,3 +505,133 @@ async def get_interventions_political_group_per_day(
 
     return { "political group": name, "interventions": interventions, "max_value": max_value,
             "begin year": b.year, "final year": final_date.year}
+
+# -------------------------------------------------------
+
+@app.get("/v1/politicianChannelsPrograms/{name}")
+async def get_politician_channels_programs(
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+):
+    """
+    Return every channel a politician talked in, specifying for each 
+    channel all the programs he participated in and for how long (minutes)
+    """
+
+    politician_channels = politicians.filter(pl.col('fullname') == name)
+    politician_channels = filter_data(politician_channels, start_date_, end_date_, kind_)
+    channels_ = politician_channels.select('channel').unique().to_series().to_list()
+    final_list = []
+
+    for c in channels_:
+        single_channel = politician_channels.filter(pl.col('channel') == c)
+        programs_channel = single_channel.select('program').unique().to_series().to_list()
+        temp = []
+        for p in programs_channel:
+            single_program = single_channel.filter(pl.col('program') == p)
+            p1 = single_program.select('program').unique().to_series().to_list()
+            total = single_program.select('duration').sum().to_series().to_list()
+            temp.append({'program': p1[0], 'minutes': total[0]})
+        final_list.append({'channel': single_channel.select('channel').unique().to_series().to_list()[0], 'programs': temp})
+
+    return { "politician": name, "channels": final_list }
+
+
+@app.get("/v1/polGroupChannelsPrograms/{name}")
+async def get_political_group_channels_programs(
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+):
+    """
+    Return every channel a political group talked in, specifying for each 
+    channel all the programs he participated in and for how long (minutes)
+    """
+
+    polgroup_channels = political_groups.filter(pl.col('lastname') == name)
+    polgroup_channels = filter_data(polgroup_channels, start_date_, end_date_, kind_)
+    channels_ = polgroup_channels.select('channel').unique().to_series().to_list()
+    final_list = []
+
+    for c in channels_:
+        single_channel = polgroup_channels.filter(pl.col('channel') == c)
+        programs_channel = single_channel.select('program').unique().to_series().to_list()
+        temp = []
+        for p in programs_channel:
+            single_program = single_channel.filter(pl.col('program') == p)
+            p1 = single_program.select('program').unique().to_series().to_list()
+            total = single_program.select('duration').sum().to_series().to_list()
+            temp.append({'program': p1[0], 'minutes': total[0]})
+        final_list.append({'channel': single_channel.select('channel').unique().to_series().to_list()[0], 'programs': temp})
+
+    return { "political group": name, "channels": final_list }
+
+# -------------------------------------------------------
+
+@app.get("/v1/channelProgramsPolitician/{name}/{channel}")
+async def get_channel_programs_politician(
+    name: str,
+    channel: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+):
+    """
+    Return every program of a channel a politician talked in, 
+    specifying for each program all the topics and for how long (minutes)
+    """
+
+    politician_channels = politicians.filter(pl.col('fullname') == name)
+    politician_channels = politician_channels.filter(pl.col('channel') == channel)
+    politician_channels = filter_data(politician_channels, start_date_, end_date_, kind_)
+    programs_ = politician_channels.select('program').unique().to_series().to_list()
+    final_list = []
+
+    for p in programs_:
+        single_program = politician_channels.filter(pl.col('program') == p)
+        topics_programs = single_program.select('topic').unique().to_series().to_list()
+        temp = []
+        for t in topics_programs:
+            single_topic = single_program.filter(pl.col('topic') == t)
+            t1 = single_topic.select('topic').unique().to_series().to_list()
+            total = single_topic.select('duration').sum().to_series().to_list()
+            temp.append({'topic': t1[0], 'minutes': total[0]})
+        final_list.append({'program': single_program.select('program').unique().to_series().to_list()[0], 'topics': temp})
+
+    return { "politician": name, "channel": channel, "programs": final_list }
+
+
+@app.get("/v1/channelProgramsPolGroup/{name}/{channel}")
+async def get_channel_programs_political_group(
+    name: str,
+    channel: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+):
+    """
+    Return every program of a channel a political group talked in, 
+    specifying for each program all the topics and for how long (minutes)
+    """
+
+    polgroup_channels = political_groups.filter(pl.col('lastname') == name)
+    polgroup_channels = polgroup_channels.filter(pl.col('channel') == channel)
+    polgroup_channels = filter_data(polgroup_channels, start_date_, end_date_, kind_)
+    programs_ = polgroup_channels.select('program').unique().to_series().to_list()
+    final_list = []
+
+    for p in programs_:
+        single_program = polgroup_channels.filter(pl.col('program') == p)
+        topics_programs = single_program.select('topic').unique().to_series().to_list()
+        temp = []
+        for t in topics_programs:
+            single_topic = single_program.filter(pl.col('topic') == t)
+            t1 = single_topic.select('topic').unique().to_series().to_list()
+            total = single_topic.select('duration').sum().to_series().to_list()
+            temp.append({'topic': t1[0], 'minutes': total[0]})
+        final_list.append({'program': single_program.select('program').unique().to_series().to_list()[0], 'topics': temp})
+
+    return { "political group": name, "channel": channel, "programs": final_list }

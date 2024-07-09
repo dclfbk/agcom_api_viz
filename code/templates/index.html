@@ -42,6 +42,7 @@
   <button id='barChartButton' onclick="barChart()">Bar Chart</button>
   <button id='barChart2Button' onclick="barChart2()">Bar Chart 2</button>
   <button id='pieChartButton'onclick="pieChart()">Pie Chart</button>
+  <button id='pieChart2Button'onclick="pieChart2()">Pie Chart 2</button>
   <button id='calendarChartButton'onclick="calendarChart()">Calendar Chart</button>
   <button id='lineChartButton'onclick="lineChart()">Line Chart</button>
   <button id='lineChart2Button'onclick="lineChart2()">Line Chart 2</button>
@@ -51,6 +52,7 @@
   <div id="barChart" style="width: 1000px; height:600px; display: none;"></div>
   <div id="barChart2" style="width: 1000px; height:600px; display: none;"></div>
   <div id="pieChart" style="width: 1000px; height:600px; display: none;"></div>
+  <div id="pieChart2" style="width: 1000px; height:600px; display: none;"></div>
   <div id="calendarChart" style="width: 1000px; height:1500px; display: none;"></div>
   <div id="lineChart" style="width: 1000px; height:600px; display: none;"></div>
   <div id="lineChart2" style="width: 1000px; height:600px; display: none;"></div>
@@ -118,6 +120,15 @@
           $('#select_pol').val([temp]).trigger('change');
         }
       })
+      $('#pieChart2Button').click(function() {
+        $('#select_pol').select2({
+          maximumSelectionLength: 1
+        });
+        if($('#select_pol').val().length != 0){
+          temp = $('#select_pol').val()[0];
+          $('#select_pol').val([temp]).trigger('change');
+        }
+      })
       $('#calendarChartButton').click(function() {
         $('#select_pol').select2({
           maximumSelectionLength: 1
@@ -153,6 +164,8 @@
         barChart2();
       }else if(document.getElementById('pieChart').style.display == "block"){
         pieChart();
+      }else if(document.getElementById('pieChart2').style.display == "block"){
+        pieChart2();
       }else if(document.getElementById('calendarChart').style.display == "block"){
         calendarChart();
       }else if(document.getElementById('lineChart').style.display == "block"){
@@ -243,6 +256,7 @@
       if($('#select_pol').val().length == 0){ return 0; }
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = 'none';
+      document.getElementById('pieChart2').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
@@ -324,6 +338,7 @@
       if($('#select_pol').val().length == 0){ return 0; }
       document.getElementById('barChart').style.display = 'none';
       document.getElementById('pieChart').style.display = 'none';
+      document.getElementById('pieChart2').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
@@ -495,6 +510,7 @@
       if($('#select_pol').val().length == 0){ return 0; }
       document.getElementById('barChart').style.display = "none";
       document.getElementById('barChart2').style.display = 'none';
+      document.getElementById('pieChart2').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
@@ -557,6 +573,87 @@
     }
 
 
+    // Pie Chart
+    async function pieChart2(){
+      if($('#select_pol').val().length == 0){ return 0; }
+      document.getElementById('barChart').style.display = "none";
+      document.getElementById('barChart2').style.display = 'none';
+      document.getElementById('pieChart').style.display = 'none';
+      document.getElementById('calendarChart').style.display = 'none';
+      document.getElementById('lineChart').style.display = "none";
+      document.getElementById('lineChart2').style.display = "none";
+      document.getElementById('radarChart').style.display = "none";
+      var pC = document.getElementById('pieChart2');
+      pC.style.display = "block";
+      var pieChart = echarts.init(pC);
+      pieChart.showLoading();
+      const p = document.getElementById("politician");
+      const pg = document.getElementById("political_group");
+      if(p.checked == true){
+        var t = "/v1/politicianChannels/";
+      }else if(pg.checked == true){
+        var t = "/v1/polGroupChannels/";
+      } else { return 0; }
+      const url = t + $('#select_pol').val()[0] + 
+                  "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
+                  "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
+                  "&kind_=" + cb;
+      const data = await fetchData(url);
+      var final = [];
+      for(let i = 0; i < data["channels"].length; i++){
+        var j = {};
+        j["name"] = await data["channels"][i]["channel"];
+        j["value"] = data["channels"][i]["minutes"];
+        if(j["value"] != 0){ final.push(j); }
+      }
+      if (cb == 'none'){ final = []; }
+      var totalInterventions = 0;
+      for (let i = 0; i < final.length; i++) {
+        totalInterventions += final[i].value;
+      }
+      var new_final = [];
+      var altro = {name: "altro", value: 0};
+      final.forEach((fin) => {
+        if(fin.value <= (totalInterventions/100*5)){
+          altro.value += fin.value;
+        }else{
+          new_final.push(fin);
+        }
+      })
+      new_final.push(altro);
+      option = {
+        title: {
+          text: 'Interventions in channel',
+          subtext: 'Here we can analyze the time a channel spends for a politician',
+          left: 'center'
+        },
+        tooltip: {
+          trigger: 'item'
+        },
+        legend: {
+          orient: 'vertical',
+          left: 'left'
+        },
+        series: [
+          {
+            type: 'pie',
+            radius: '50%',
+            data: new_final,
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              }
+            }
+          }
+        ]
+      };
+      pieChart.setOption(option);
+      pieChart.hideLoading();
+    }
+
+
     // Calendar Chart
     var calendarChartInstance = null;
 
@@ -568,6 +665,7 @@
       document.getElementById('barChart').style.display = "none";
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = "none";
+      document.getElementById('pieChart2').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
@@ -631,6 +729,7 @@
       document.getElementById('barChart').style.display = "none";
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = "none";
+      document.getElementById('pieChart2').style.display = 'none';
       document.getElementById('lineChart2').style.display = "none";
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('radarChart').style.display = "none";
@@ -731,6 +830,7 @@
       document.getElementById('barChart').style.display = "none";
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = "none";
+      document.getElementById('pieChart2').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
@@ -845,6 +945,7 @@
       document.getElementById('barChart').style.display = "none";
       document.getElementById('barChart2').style.display = 'none';
       document.getElementById('pieChart').style.display = "none";
+      document.getElementById('pieChart2').style.display = 'none';
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
