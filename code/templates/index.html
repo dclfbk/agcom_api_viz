@@ -89,7 +89,7 @@
       }
       return str;
     }
-    
+
 
     // initializing select pol
     $(document).ready(function() {
@@ -405,7 +405,7 @@
               params.forEach((item, index) => {
                 result += '<div style="display: flex; align-items: center;">';
                 result += '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:' + item.color + ';"></span>';
-                result += params[index].seriesName + ": ";
+                result += '<b style="padding-right: 10px;">' + params[index].seriesName + ":</b>";
                 result += calcTime(params[index].data);
                 result += '</div>';
               });
@@ -624,10 +624,12 @@
         totalInterventions += final[i].value;
       }
       var new_final = [];
+      var altro_channels = [];
       var altro = {name: "altro", value: 0};
       final.forEach((fin) => {
         if(fin.value <= (totalInterventions/100*5)){
           altro.value += fin.value;
+          altro_channels.push(fin.name);
         }else{
           new_final.push(fin);
         }
@@ -640,7 +642,18 @@
           left: 'center'
         },
         tooltip: {
-          trigger: 'item'
+          trigger: 'item',
+          formatter: function (params) {
+            var result = '';
+            result += '<b>' + params.name + '</b>';
+            result += '<div style="display: flex; align-items: center;">';
+            result += '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:' + params.color + ';"></span>';
+            result += '<b style="padding-right: 10px;">' + params.name + ":</b>";
+            result += calcTime(params.value);
+            result += '<p style="padding-left: 10px;">(' + params.percent + "%)</b>";
+            result += '</div>';
+            return result;
+          }
         },
         legend: {
           orient: 'vertical',
@@ -663,76 +676,125 @@
       };
       pieChart.setOption(option);
       pieChart.hideLoading();
-      pieChart.on("click", function(p) {
-        console.log(p);
-        const url3 = t3 + encodeURIComponent($('#select_pol').val()[0]) + "/" + 
-                  encodeURIComponent(p.data.name) +
-                  "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
-                  "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
-                  "&kind_=" + cb;
-        fetchData(url3).then(result => {
-          var sbC = document.getElementById('stackedBarChart');
-          sbC.style.display = "block";
-          var stackedBarChart = echarts.init(sbC);
-          stackedBarChart.showLoading();
-          var y = [];
-          result.programs.forEach((r) => {
-            y.push(r.program);
-          });
-          var series3 = [];
-          var legenda = {};
-          TOPICS.topics.forEach((t) => {
-            var programValue = [];
-            result.programs.forEach((r, index) => {
-              var found = false;
-              r.topics.forEach(rt => {
-                if(rt.topic == t){
-                  programValue.push(rt.minutes);
-                  found = true;
-                }
-              });
-              if(found == false){
-                programValue.push(undefined);
+      
+      pieChart.on("click", async function(p) {
+        var sbC = document.getElementById('stackedBarChart');
+        sbC.style.display = "block";
+        if(p.data.name == 'altro'){
+          sbC.style.height = "4000px";
+        }
+        var stackedBarChart = echarts.init(sbC);
+        stackedBarChart.showLoading();
+        var data3 = {"channel": 'altro', "programs": []};
+        var list_channels = [];
+        if(p.data.name != 'altro'){
+          const url3 = t3 + encodeURIComponent($('#select_pol').val()[0]) + "/" + 
+                    encodeURIComponent(p.data.name) +
+                    "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
+                    "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
+                    "&kind_=" + cb;
+          data3 = await fetchData(url3);
+        }else{
+          for (const ch of altro_channels) {
+            const url3 = t3 + encodeURIComponent($('#select_pol').val()[0]) + "/" + 
+                    encodeURIComponent(ch) +
+                    "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
+                    "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
+                    "&kind_=" + cb;
+            temp_data3 = await fetchData(url3);
+            temp_data3.programs.forEach((pgrm) => {
+              data3.programs.push(pgrm);
+              list_channels.push(temp_data3.channel);
+            })
+          }
+        }
+        var y = [];
+        data3.programs.forEach((r) => {
+          y.push(r.program);
+        });
+        var series3 = [];
+        var legenda = {};
+        TOPICS.topics.forEach((t) => {
+          var programValue = [];
+          data3.programs.forEach((r, index) => {
+            var found = false;
+            r.topics.forEach(rt => {
+              if(rt.topic == t){
+                programValue.push(rt.minutes);
+                found = true;
               }
             });
-            if(programValue.some(element => element !== undefined)){
-              series3.push({name: t, type: 'bar', stack: 'total',
-                            emphasis: { focus: 'series' },
-                            data: programValue });
-              legenda[t] = false;
+            if(found == false){
+              programValue.push(0);
             }
           });
-          option3 = {
-            title: {
-              text: result.channel
+          if(programValue.some(element => element !== 0)){
+            series3.push({name: t, type: 'bar', stack: 'total',
+                          emphasis: { focus: 'series' },
+                          data: programValue });
+            legenda[t] = false;
+          }
+        });
+        yShorted = [];
+        y.forEach((ch, index) => {
+          if(ch.length > 15){
+            yShorted.push(ch.substring(0, 15) + "...");
+          }
+          else{
+            yShorted.push(ch);
+          }
+        });
+        option3 = {
+          title: {
+            text: data3.channel,
+            left: 'center'
+          },
+          tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+              type: 'shadow'
             },
-            tooltip: {
-              trigger: 'axis',
-              axisPointer: {
-                type: 'shadow' 
+            formatter: function (params) {
+              var result = '';
+              if((p.data.name == 'altro')){
+                result += '<b>' + list_channels[params[0].dataIndex] + "  -  " + y[params[0].dataIndex] + '</b>';
+              }else{
+                result += '<b>' + y[params[0].dataIndex] + '</b>';
               }
-            },
-            legend: {
-              selected: legenda   /// remove if you want the bars to be shown
-            },
-            grid: {
-              left: '3%',
-              right: '4%',
-              bottom: '3%',
-              containLabel: true
-            },
-            xAxis: {
-              type: 'value'
-            },
-            yAxis: {
-              type: 'category',
-              data: y
-            },
-            series: series3
-          };
-          stackedBarChart.setOption(option3)
-          stackedBarChart.hideLoading();
-        })
+              params.forEach((item, index) => {
+                if(params[index].data != 0){
+                  result += '<div style="display: flex; align-items: center;">';
+                  result += '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:' + item.color + ';"></span>';
+                  result += '<b style="padding-right: 10px;">' + params[index].seriesName + ": " + "</b>";
+                  result += calcTime(params[index].data);
+                  result += '</div>';
+                  }
+              });
+              return result;
+            }
+          },
+          legend: {
+            selected: legenda,  /// remove if you want the bars to be shown
+            type: 'scroll',
+            top: 30   
+          },
+          grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+          },
+          xAxis: {
+            type: 'value'
+          },
+          yAxis: {
+            type: 'category',
+            data: yShorted,
+          },
+          series: series3
+        };
+        stackedBarChart.setOption(option3)
+        stackedBarChart.hideLoading();
       });
     }
 
@@ -769,16 +831,16 @@
                   "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
                   "&kind_=" + cb;
       fetchData(url).then(result => {
-        var interv = result["interventions"]
-        var max_value = result["max_value"]
-        var begin_year = result["begin year"]
-        var final_year = result["final year"]
-        var calendar = []
-        var series = []
+        var interv = result["interventions"];
+        var max_value = result["max_value"];
+        var begin_year = result["begin year"];
+        var final_year = result["final year"];
+        var calendar = [];
+        var series = [];
         interv.forEach(function(x, index) {
           x.forEach(function(y, index2) {
             interv[index][index2][0] = +echarts.time.parse(interv[index][index2][0]);
-          })
+          });
         });
         for (var i = begin_year; i <= final_year; i++ ){
           calendar.push({top: (100 + (i-begin_year)*200), range: i.toString(), cellSize: ['auto', 20]});
@@ -788,7 +850,16 @@
         }
         option = {
           tooltip: {
-            position: 'top'
+            position: 'top',
+            formatter: function (params) {
+              const date = echarts.time.format(params.value[0], '{dd}-{MM}-{yyyy}', false);
+              var result = '';
+              result += '<div style="display: flex; align-items: center;">';
+              result += '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:' + params.color + ';"></span>';
+              result += `<b style="padding-right: 10px;">${date}: </b>${params.value[1]} interventions`;
+              result += '</div>';
+              return result;
+            }
           },
           visualMap: {
             min: 0,
@@ -1107,15 +1178,15 @@
           formatter: function(name) {
             if (name.length > 35) {
               var index = 35;
-                while (name.charAt(index) !== ' ' && index > 0) {
-                    index--;
-                }
-                if (index === 0) {
-                    index = 35; 
-                }
-                return name.substr(0, index) + '\n' + name.substr(index);
+              while (name.charAt(index) !== ' ' && index > 0) {
+                index--;
+              }
+              if (index === 0) {
+                index = 35; 
+              }
+              return name.substr(0, index) + '\n' + name.substr(index);
             } else {
-                return name;
+              return name;
             }
           }
         },
