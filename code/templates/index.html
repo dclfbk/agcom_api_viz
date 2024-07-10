@@ -41,12 +41,12 @@
 
   <button id='barChartButton' onclick="barChart()">Bar Chart</button>
   <button id='barChart2Button' onclick="barChart2()">Bar Chart 2</button>
-  <button id='pieChartButton'onclick="pieChart()">Pie Chart</button>
-  <button id='pieChart2Button'onclick="pieChart2()">Pie Chart 2</button>
-  <button id='calendarChartButton'onclick="calendarChart()">Calendar Chart</button>
-  <button id='lineChartButton'onclick="lineChart()">Line Chart</button>
-  <button id='lineChart2Button'onclick="lineChart2()">Line Chart 2</button>
-  <button id='radarChartButton'onclick="radarChart()">Radar Chart</button>
+  <button id='pieChartButton' onclick="pieChart()">Pie Chart</button>
+  <button id='pieChart2Button' onclick="pieChart2()">Pie Chart 2</button>
+  <button id='calendarChartButton' onclick="calendarChart()">Calendar Chart</button>
+  <button id='lineChartButton' onclick="lineChart()">Line Chart</button>
+  <button id='lineChart2Button' onclick="lineChart2()">Line Chart 2</button>
+  <button id='radarChartButton' onclick="radarChart()">Radar Chart</button>
   
 
   <div id="barChart" style="width: 1000px; height:600px; display: none;"></div>
@@ -102,7 +102,7 @@
         $('#select_pol').select2({
           maximumSelectionLength: 1
         });
-        if($('#select_pol').val().length != 0){
+        if($('#select_pol').val().length > 1){
           temp = $('#select_pol').val()[0];
           $('#select_pol').val([temp]).trigger('change');
         }
@@ -116,7 +116,7 @@
         $('#select_pol').select2({
           maximumSelectionLength: 1
         });
-        if($('#select_pol').val().length != 0){
+        if($('#select_pol').val().length > 1){
           temp = $('#select_pol').val()[0];
           $('#select_pol').val([temp]).trigger('change');
         }
@@ -125,7 +125,7 @@
         $('#select_pol').select2({
           maximumSelectionLength: 1
         });
-        if($('#select_pol').val().length != 0){
+        if($('#select_pol').val().length > 1){
           temp = $('#select_pol').val()[0];
           $('#select_pol').val([temp]).trigger('change');
         }
@@ -134,7 +134,7 @@
         $('#select_pol').select2({
           maximumSelectionLength: 1
         });
-        if($('#select_pol').val().length != 0){
+        if($('#select_pol').val().length > 1){
           temp = $('#select_pol').val()[0];
           $('#select_pol').val([temp]).trigger('change');
         }
@@ -581,8 +581,13 @@
     }
 
 
+    var pieChartInstance = null;
+
     // Pie Chart
     async function pieChart2(){
+      if (pieChartInstance !== null) {
+        pieChartInstance.dispose();
+      }
       if($('#select_pol').val().length == 0){ return 0; }
       document.getElementById('barChart').style.display = "none";
       document.getElementById('barChart2').style.display = 'none';
@@ -594,8 +599,8 @@
       document.getElementById('radarChart').style.display = "none";
       var pC = document.getElementById('pieChart2');
       pC.style.display = "block";
-      var pieChart = echarts.init(pC);
-      pieChart.showLoading();
+      pieChartInstance = echarts.init(pC);
+      pieChartInstance.showLoading();
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
@@ -657,7 +662,7 @@
         },
         legend: {
           orient: 'vertical',
-          left: 'left'
+          left: 'left',
         },
         series: [
           {
@@ -674,10 +679,59 @@
           }
         ]
       };
-      pieChart.setOption(option);
-      pieChart.hideLoading();
-      
-      pieChart.on("click", async function(p) {
+      pieChartInstance.setOption(option, true);
+      pieChartInstance.hideLoading();
+      var removedElements = [];
+
+      pieChartInstance.on("legendselectchanged", async function(p) {
+        if(p.selected[p.name] == false){
+          var ind;
+          new_final.forEach((ch, index) => {
+            if(ch.name == p.name){
+              ind = index;
+            }
+          });
+          removedElements.push(JSON.parse(JSON.stringify(new_final[ind])));
+          new_final[ind].value = 0;
+        } else {
+          var ind;
+          removedElements.forEach((ch, index) => {
+            if(ch.name == p.name){
+              ind = index;
+            }
+          });
+          new_final.forEach((ch, index) => {
+            if(ch.name == removedElements[ind].name){
+              ch.value = removedElements[ind].value;
+            }
+          });
+          removedElements.splice(ind, 1);
+        }
+        totalInterventions = 0;
+        for (let i = 0; i < final.length; i++) {
+          totalInterventions += final[i].value;
+        }
+        if(p.selected['altro'] == true){
+          altro.value = 0;
+          altro_channels = [];
+          new_final = [];
+          final.forEach((fin) => {
+            if(fin.value <= (totalInterventions/100*5) && fin.value != 0){
+              altro.value += fin.value;
+              altro_channels.push(fin.name);
+            }else{
+              new_final.push(fin);
+            }
+          })
+          if(altro.value != 0){
+            new_final.push(altro);
+          }
+        }
+        option.series[0].data = new_final;
+        pieChartInstance.setOption(option);
+      })
+
+      pieChartInstance.on("click", async function(p) {
         var sbC = document.getElementById('stackedBarChart');
         sbC.style.display = "block";
         if(p.data.name == 'altro'){
