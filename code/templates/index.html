@@ -196,7 +196,7 @@
             option.text = valore;
             select_pol.appendChild(option);
           });
-        })
+        });
       } else if (radio.value == 'political_group'){
         fetchData("/v1/political_groups").then(result => {
           result["political_groups"].forEach(valore => {
@@ -205,7 +205,7 @@
             option.text = valore;
             select_pol.appendChild(option);
           });
-        })
+        });
       }
     }
 
@@ -638,8 +638,9 @@
         }else{
           new_final.push(fin);
         }
-      })
+      });
       new_final.push(altro);
+      new_final.sort((a, b) => b.value - a.value);
       option = {
         title: {
           text: 'Interventions in channel',
@@ -727,11 +728,13 @@
             new_final.push(altro);
           }
         }
+        new_final.sort((a, b) => b.value - a.value);
         option.series[0].data = new_final;
         pieChartInstance.setOption(option);
       })
 
       pieChartInstance.on("click", async function(p) {
+        var check_selection = false;
         var sbC = document.getElementById('stackedBarChart');
         sbC.style.display = "block";
         if(p.data.name == 'altro'){
@@ -798,6 +801,31 @@
             yShorted.push(ch);
           }
         });
+
+        const s_d_all = function () {
+          var newSelected = {};
+          for (item in stackedBarChart.getOption().legend[0].selected) {
+            newSelected[item] = !check_selection;
+          }
+          check_selection = !check_selection;
+          stackedBarChart.setOption({
+            legend: {
+              selected: newSelected
+            },
+            graphic: [
+              {
+                type: 'text',
+                left: 50,
+                style: {
+                  text: check_selection ? 'Deseleziona Tutto' : 'Seleziona Tutto',
+                  fontSize: 18
+                },
+                onclick: arguments.callee
+              }
+            ]
+          });
+        }
+
         option3 = {
           title: {
             text: data3.channel,
@@ -830,7 +858,7 @@
           legend: {
             selected: legenda,  /// remove if you want the bars to be shown
             type: 'scroll',
-            top: 30   
+            top: 30
           },
           grid: {
             left: '3%',
@@ -845,10 +873,55 @@
             type: 'category',
             data: yShorted,
           },
-          series: series3
+          series: series3,
+          graphic: [
+              {
+                type: 'text',
+                left: 50,
+                style: {
+                  text: 'Seleziona tutto',
+                  fontSize: 18
+                },
+                onclick: s_d_all
+              }
+            ]
         };
         stackedBarChart.setOption(option3)
         stackedBarChart.hideLoading();
+
+        stackedBarChart.on("legendselectchanged", async function(p) {
+          if(Object.values(p.selected).every(value => value === true)){
+            check_selection = true;
+            stackedBarChart.setOption({
+              graphic: [
+                {
+                  type: 'text',
+                  left: 50,
+                  style: {
+                    text: 'Deseleziona tutto',
+                    fontSize: 18
+                  },
+                  onclick: s_d_all
+                }
+              ]
+            });
+          } else if (Object.values(p.selected).every(value => value === false)){
+            check_selection = false;
+            stackedBarChart.setOption({
+              graphic: [
+                {
+                  type: 'text',
+                  left: 50,
+                  style: {
+                    text: 'Seleziona tutto',
+                    fontSize: 18
+                  },
+                  onclick: s_d_all
+                }
+              ]
+            });
+          }
+        });
       });
     }
 
