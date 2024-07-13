@@ -47,6 +47,8 @@
   <button id='lineChartButton' onclick="lineChart()">Line Chart</button>
   <button id='lineChart2Button' onclick="lineChart2()">Line Chart 2</button>
   <button id='radarChartButton' onclick="radarChart()">Radar Chart</button>
+  <button id='barPieChartButton' onclick="barPieChart()">Bar Pie Chart</button>
+
   
 
   <div id="barChart" style="width: 1000px; height:600px; display: none;"></div>
@@ -58,6 +60,7 @@
   <div id="lineChart" style="width: 1000px; height:600px; display: none;"></div>
   <div id="lineChart2" style="width: 1000px; height:600px; display: none;"></div>
   <div id="radarChart" style="width: 1000px; height:600px; display: none;"></div>
+  <div id="barPieChart" style="width: 1000px; height:600px; display: none;"></div>
 
   <script>
 
@@ -154,6 +157,11 @@
           maximumSelectionLength: 4
         });
       })
+      $('#barPieChartButton').click(function() {
+        $('#select_pol').select2({
+          maximumSelectionLength: 4
+        });
+      })
     });
 
 
@@ -175,6 +183,8 @@
         lineChart2();
       }else if(document.getElementById('radarChart').style.display == "block"){
         radarChart();
+      }else if(document.getElementById('barPieChart').style.display == "block"){
+        barPieChart();
       }
     }
 
@@ -267,6 +277,7 @@
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
+      document.getElementById('barPieChart').style.display = "none";
       var bC = document.getElementById('barChart');
       bC.style.display = "block";
       var barChart = echarts.init(bC);
@@ -350,6 +361,7 @@
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
+      document.getElementById('barPieChart').style.display = "none";
       var bC = document.getElementById('barChart2');
       bC.style.display = "block";
       barChart2Instance = echarts.init(bC);
@@ -523,6 +535,7 @@
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
+      document.getElementById('barPieChart').style.display = "none";
       var pC = document.getElementById('pieChart');
       pC.style.display = "block";
       var pieChart = echarts.init(pC);
@@ -597,6 +610,7 @@
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
+      document.getElementById('barPieChart').style.display = "none";
       var pC = document.getElementById('pieChart2');
       pC.style.display = "block";
       pieChartInstance = echarts.init(pC);
@@ -943,6 +957,7 @@
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
+      document.getElementById('barPieChart').style.display = "none";
       var cC = document.getElementById('calendarChart');
       cC.style.display = "block";
       calendarChartInstance = echarts.init(cC);
@@ -1017,6 +1032,7 @@
       document.getElementById('lineChart2').style.display = "none";
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('radarChart').style.display = "none";
+      document.getElementById('barPieChart').style.display = "none";
       var lC = document.getElementById('lineChart');
       lC.style.display = "block";
       var lineChart = echarts.init(lC);
@@ -1119,6 +1135,7 @@
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('radarChart').style.display = "none";
+      document.getElementById('barPieChart').style.display = "none";
       var lC = document.getElementById('lineChart2');
       lC.style.display = "block";
       var lineChart = echarts.init(lC);
@@ -1235,6 +1252,7 @@
       document.getElementById('calendarChart').style.display = 'none';
       document.getElementById('lineChart').style.display = "none";
       document.getElementById('lineChart2').style.display = "none";
+      document.getElementById('barPieChart').style.display = "none";
       var rC = document.getElementById('radarChart');
       rC.style.display = "block";
       var radarChart = echarts.init(rC);
@@ -1256,9 +1274,9 @@
                 "&kind_=" + cb;
         const data = await fetchData(url);
         if(p.checked == true){ 
-          politicians.push(data["politician"])
+          politicians.push(data["politician"]);
         } else if (pg.checked == true){ 
-          politicians.push(data["political group"]) 
+          politicians.push(data["political group"]);
         }
         values.push(data["topics"]);
       }
@@ -1288,10 +1306,10 @@
       var indicator = [];
       var data = [];
       topics.forEach(function(f, index){
-        indicator.push({name: f, max: max_min[index]})
+        indicator.push({name: f, max: max_min[index]});
       });
       politicians.forEach(function(p, index){
-        data.push({name: p, value: minutes[index]})
+        data.push({name: p, value: minutes[index]});
       });
       option = {
         title: {
@@ -1335,6 +1353,179 @@
       };
       radarChart.setOption(option);
       radarChart.hideLoading();
+    }
+
+
+    // Bar Pie Chart
+
+    function dataFormatter (obj, list, m_y, x_y) {
+      var temp;
+      for (var year = m_y; year <= x_y; year++) {
+        var max = 0;
+        var sum = 0;
+        temp = obj[year];
+        for (var i = 0, l = temp.length; i < l; i++) {
+          max = Math.max(max, temp[i]);
+          sum += temp[i];
+          obj[year][i] = {
+            name: list[i],
+            value: temp[i]
+          };
+        }
+        obj[year + 'max'] = Math.floor(max / 100) * 100;
+        obj[year + 'sum'] = sum;
+      }
+      return obj;
+    }
+
+    async function barPieChart(){
+      var CHANNEL = "RAI 1";
+      if($('#select_pol').val().length == 0){ return 0; }
+      document.getElementById('barChart').style.display = "none";
+      document.getElementById('barChart2').style.display = 'none';
+      document.getElementById('pieChart').style.display = "none";
+      document.getElementById('pieChart2').style.display = 'none';
+      document.getElementById('stackedBarChart').style.display = 'none';
+      document.getElementById('calendarChart').style.display = 'none';
+      document.getElementById('lineChart').style.display = "none";
+      document.getElementById('lineChart2').style.display = "none";
+      document.getElementById('radarChart').style.display = "none";
+      var bpC = document.getElementById('barPieChart');
+      bpC.style.display = "block";
+      var barPieChart = echarts.init(bpC);
+      barPieChart.showLoading();
+      const p = document.getElementById("politician");
+      const pg = document.getElementById("political_group");
+      if(p.checked == true){
+        var t = "/v1/minutesChannelPerPolitician/";
+      }else if(pg.checked == true){
+        var t = "/v1/minutesChannelPerPolGroup/";
+      } else { return 0; }
+      const selectedValues = $('#select_pol').val();
+      var min_year = start_date.value.split("-")[0];
+      var max_year = end_date.value.split("-")[0];
+      var politicians_list = {};
+      var programs_list = [];
+      var first_done = false;
+      var data_timeline = [];
+      var data_legend = [];
+      var data_xAxis = [];
+      var series = [];
+      var options = [];
+      for (var x = min_year; x <= max_year; x++){
+        data_timeline.push("year " + x);
+      }
+      for (const value of selectedValues) {
+        const url = t + encodeURI(CHANNEL) + "/" + value + 
+                "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
+                "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
+                "&kind_=" + cb;
+        const data = await fetchData(url);
+        if(p.checked == true){ 
+          data_legend.push(data["politician"]);
+        } else if (pg.checked == true){ 
+          data_legend.push(data["political group"]);
+        }
+        var temp_list = {};
+        data.programs.forEach((prgm, index) => {
+          if (!first_done){
+            programs_list.push(prgm.program);
+          }
+          if (index%2 == 0){
+            data_xAxis.push(prgm.program);
+          } else {
+            data_xAxis.push("\n" + prgm.program);
+          }
+          for (var yr in prgm.data){
+            if(temp_list[yr] === undefined){
+              temp_list[yr] = [];
+            }
+            temp_list[yr].push(prgm.data[yr])
+          }
+        });
+        politicians_list[value] = dataFormatter(temp_list, programs_list, min_year, max_year);
+        first_done = true;
+        series.push({name: value, type: "bar"})
+      }
+      for (var x = min_year; x <= max_year; x++){
+        var data_ = [];
+        var series_ = [];
+        var arg = x + "sum"
+        data_legend.forEach((p) => {
+          data_.push({name: p, value: politicians_list[p][arg]});
+        })
+        data_legend.forEach((p) => {
+          series_.push({data: politicians_list[p][x]})
+        })
+        series_.push({data: data_});
+        var title = CHANNEL + "   " + x;
+        options.push({title: title, series: series_});
+      }
+      option = {
+        baseOption: {
+          timeline: {
+            axisType: 'category',
+            // realtime: false,
+            // loop: false,
+            autoPlay: true,
+            // currentIndex: 2,
+            playInterval: 1000,
+            // controlStyle: {
+            //     position: 'left'
+            // },
+            data: data_timeline,
+            label: {
+              formatter: function (s) {
+                return new Date(s).getFullYear();
+              }
+            }
+          },
+          title: {
+            subtext: "LESGOSKI"
+          },
+          tooltip: {},
+          legend: {
+            left: 'right',
+            data: data_legend,
+          },
+          calculable: true,
+          grid: {
+            top: 80,
+            bottom: 100,
+            tooltip: {
+              trigger: 'axis',
+              axisPointer: {
+                type: 'shadow',
+                label: {
+                  show: true,
+                  formatter: function (params) {
+                    return params.value.replace('\n', '');
+                  }
+                }
+              }
+            }
+          },
+          xAxis: [
+            {
+              type: 'category',
+              axisLabel: { interval: 0 },
+              data: data_xAxis,
+              splitLine: { show: false }
+            }
+          ],
+          yAxis: [
+            {
+              type: 'value',
+              name: 'minutes'
+            }
+          ],
+          series: series
+        },
+        options: options
+      };
+      console.log(option)
+      barPieChart.setOption(option);
+      barPieChart.hideLoading();
     }
 
   </script>

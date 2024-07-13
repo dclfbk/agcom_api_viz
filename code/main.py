@@ -1,12 +1,20 @@
-from fastapi import FastAPI, Query
-from fastapi.staticfiles import StaticFiles
-from starlette.responses import FileResponse
-import polars as pl
+"""
+This module provides a series of RESTful APIs to provide data
+gathered from the agcomdata.parquet file.
+
+Author: Merak Winston Hall
+Date: 2024-07-13
+"""
+
 import os
 import warnings
 from datetime import datetime
 import datetime as dt
 import calendar
+from fastapi import FastAPI, Query
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import FileResponse
+import polars as pl
 warnings.filterwarnings('ignore')
 
 
@@ -657,6 +665,7 @@ async def get_minutes_channel_per_politician(
     all_programs_channel = data.filter(pl.col('channel') == channel)
     all_programs_channel = filter_data(all_programs_channel, start_date_, end_date_, kind_)
     programs_channel = all_programs_channel.select('program').unique().to_series().to_list()
+    programs_channel.sort()
 
     first_year = int(start_date_.split('/')[0])
     last_year = int(end_date_.split('/')[0])
@@ -681,8 +690,7 @@ async def get_minutes_channel_per_politician(
         temp_prgrm["data"] = datas
         final_programs.append(temp_prgrm)
 
-    return { "min year": first_year, "max_year": last_year,
-            "channel": channel, "politician": name, "programs": final_programs}
+    return { "politician": name, "programs": final_programs }
 
 
 @app.get("/v1/minutesChannelPerPolGroup/{channel}/{name}")
@@ -700,6 +708,7 @@ async def get_minutes_channel_per_political_group(
     all_programs_channel = data.filter(pl.col('channel') == channel)
     all_programs_channel = filter_data(all_programs_channel, start_date_, end_date_, kind_)
     programs_channel = all_programs_channel.select('program').unique().to_series().to_list()
+    programs_channel.sort()
 
     first_year = int(start_date_.split('/')[0])
     last_year = int(end_date_.split('/')[0])
@@ -724,5 +733,4 @@ async def get_minutes_channel_per_political_group(
         temp_prgrm["data"] = datas
         final_programs.append(temp_prgrm)
 
-    return { "min year": first_year, "max_year": last_year,
-            "channel": channel, "political group": name, "programs": final_programs}
+    return { "political group": name, "programs": final_programs }
