@@ -639,3 +639,90 @@ async def get_channel_programs_political_group(
                            .to_series().to_list()[0], 'topics': temp})
 
     return { "political group": name, "channel": channel, "programs": final_list }
+
+# -------------------------------------------------------
+
+@app.get("/v1/minutesChannelPerPolitician/{channel}/{name}")
+async def get_minutes_channel_per_politician(
+    channel: str,
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+):
+    """
+    Return all the programs in a channel, and how many minutes a politician has intervened
+    """
+
+    all_programs_channel = data.filter(pl.col('channel') == channel)
+    all_programs_channel = filter_data(all_programs_channel, start_date_, end_date_, kind_)
+    programs_channel = all_programs_channel.select('program').unique().to_series().to_list()
+
+    first_year = int(start_date_.split('/')[0])
+    last_year = int(end_date_.split('/')[0])
+
+    final_programs = []
+
+    for prog in programs_channel:
+        temp_prgrm = {}
+        temp_prgrm["program"] = prog
+        temp = all_programs_channel.filter(pl.col('program') == prog)
+        temp = temp.filter(pl.col('fullname') == name)
+        datas = {}
+        m_y = first_year
+        x_y = last_year
+        while m_y != (x_y + 1):
+            fy = datetime.strptime(str(m_y), '%Y')
+            ly = datetime.strptime(str(m_y + 1), '%Y')
+            a = temp.filter(pl.col('day') >= fy)
+            a = a.filter(pl.col('day') <= ly)
+            datas[m_y] = a.select('duration').sum().to_series().to_list()[0]
+            m_y += 1
+        temp_prgrm["data"] = datas
+        final_programs.append(temp_prgrm)
+
+    return { "min year": first_year, "max_year": last_year,
+            "channel": channel, "politician": name, "programs": final_programs}
+
+
+@app.get("/v1/minutesChannelPerPolGroup/{channel}/{name}")
+async def get_minutes_channel_per_political_group(
+    channel: str,
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+):
+    """
+    Return all the programs in a channel, and how many minutes a political group has intervened
+    """
+
+    all_programs_channel = data.filter(pl.col('channel') == channel)
+    all_programs_channel = filter_data(all_programs_channel, start_date_, end_date_, kind_)
+    programs_channel = all_programs_channel.select('program').unique().to_series().to_list()
+
+    first_year = int(start_date_.split('/')[0])
+    last_year = int(end_date_.split('/')[0])
+
+    final_programs = []
+
+    for prog in programs_channel:
+        temp_prgrm = {}
+        temp_prgrm["program"] = prog
+        temp = all_programs_channel.filter(pl.col('program') == prog)
+        temp = temp.filter(pl.col('lastname') == name)
+        datas = {}
+        m_y = first_year
+        x_y = last_year
+        while m_y != (x_y + 1):
+            fy = datetime.strptime(str(m_y), '%Y')
+            ly = datetime.strptime(str(m_y + 1), '%Y')
+            a = temp.filter(pl.col('day') >= fy)
+            a = a.filter(pl.col('day') <= ly)
+            datas[m_y] = a.select('duration').sum().to_series().to_list()[0]
+            m_y += 1
+        temp_prgrm["data"] = datas
+        final_programs.append(temp_prgrm)
+
+    return { "min year": first_year, "max_year": last_year,
+            "channel": channel, "political group": name, "programs": final_programs}
