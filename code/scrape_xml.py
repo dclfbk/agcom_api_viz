@@ -369,7 +369,7 @@ cols = {"CANALE":"channel",
         "DATA":"day",
         "COGNOME":"lastname",
         "NOME":"name",
-        "MICRO_CATEGORIA":"subcategory",
+        "MICRO_CATEGORIA":"affiliation",
         "ARGOMENTO":"topic",
         "DURATA":"duration",
         "TIPO_TEMPO":"kind"}
