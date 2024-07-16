@@ -10,8 +10,7 @@ import os
 import warnings
 from datetime import datetime
 import datetime as dt
-import calendar
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 import polars as pl
@@ -31,7 +30,9 @@ end_date = data.select('day').max().to_series()[0].strftime('%Y/%m/%d')
 kind = ["speech", "news", "both"]
 
 politicians = data.filter(pl.col("name") != "political movement")
-political_groups = data.filter(pl.col("name") == "political movement")
+politicians_list = data.select('fullname').unique().to_series().to_list()
+political_groups = data.filter(pl.col("name") == "Soggetto collettivo")
+political_groups_list = data.select('lastname').unique().to_series().to_list()
 
 channels = data.select('channel').unique().to_series().to_list()
 programs = data.select('program').unique().to_series().to_list()
@@ -47,7 +48,7 @@ def validate_date(date_str):
     try:
         return datetime.strptime(date_str, '%Y/%m/%d')
     except ValueError as exc:
-        raise ValueError("Incorrect date format, should be DD-MM-YYYY") from exc
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY/MM/DD") from exc
 
 
 def filter_data(data_, start_date_, end_date_, kind_):
@@ -56,6 +57,9 @@ def filter_data(data_, start_date_, end_date_, kind_):
     """
     start_date_ = validate_date(start_date_)
     end_date_ = validate_date(end_date_)
+
+    if start_date_ > end_date_:
+        raise HTTPException(status_code=400, detail="Start date must be before end date")
 
     filtered_data = data_.filter(pl.col("day") >= start_date_).filter(pl.col("day") <= end_date_)
 
@@ -124,7 +128,7 @@ async def get_politicians(
     return { "politicians": politicians_ }
 
 
-@app.get("/v1/political_groups")
+@app.get("/v1/political-groups")
 async def get_political_groups(
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
@@ -184,7 +188,7 @@ async def get_topics():
 
 # -------------------------------------------------------
 
-@app.get("/v1/politicianTopics/{name}")
+@app.get("/v1/politician-topics/{name}")
 async def get_politician_topics(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -211,7 +215,7 @@ async def get_politician_topics(
     return { "politician": name, "topics": final_list }
 
 
-@app.get("/v1/polGroupTopics/{name}")
+@app.get("/v1/political-group-topics/{name}")
 async def get_political_group_topics(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -238,7 +242,7 @@ async def get_political_group_topics(
 
 # -------------------------------------------------------
 
-@app.get("/v1/politicianChannels/{name}")
+@app.get("/v1/politician-channels/{name}")
 async def get_politician_channels(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -264,7 +268,7 @@ async def get_politician_channels(
     return { "politician": name, "channels": final_list }
 
 
-@app.get("/v1/polGroupChannels/{name}")
+@app.get("/v1/political-group-channels/{name}")
 async def get_political_group_channels(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -291,7 +295,7 @@ async def get_political_group_channels(
 
 # -------------------------------------------------------
 
-@app.get("/v1/politiciansAffiliation/{name}")
+@app.get("/v1/politicians-affiliation/{name}")
 async def get_politicians_affiliation(
     name: str,
 ):
@@ -304,7 +308,7 @@ async def get_politicians_affiliation(
     return { "affiliation": name, "politicians": final_list }
 
 
-@app.get("/v1/affiliationsPolitician/{name}")
+@app.get("/v1/affiliations-politician/{name}")
 async def get_affiliations_politician(
     name: str,
 ):
@@ -319,7 +323,7 @@ async def get_affiliations_politician(
 
 # -------------------------------------------------------
 
-@app.get("/v1/interventionsPoliticalGroup/{name}")
+@app.get("/v1/interventions-political-group/{name}")
 async def get_interventions_political_group(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -352,7 +356,7 @@ async def get_dates():
 
 # -------------------------------------------------------
 
-@app.get("/v1/interventionsPoliticianPerYear/{name}")
+@app.get("/v1/interventions-politician-per-year/{name}")
 async def get_interventions_politician_per_year(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -387,7 +391,7 @@ async def get_interventions_politician_per_year(
             "interventions": interventions, "minutes": minutes }
 
 
-@app.get("/v1/interventionsPoliticalGroupPerYear/{name}")
+@app.get("/v1/interventions-political-group-per-year/{name}")
 async def get_interventions_political_group_per_year(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -423,7 +427,7 @@ async def get_interventions_political_group_per_year(
 
 # -------------------------------------------------------
 
-@app.get("/v1/interventionsPoliticianPerDay/{name}")
+@app.get("/v1/interventions-politician-per-day/{name}")
 async def get_interventions_politician_per_day(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -469,7 +473,7 @@ async def get_interventions_politician_per_day(
             "begin year": b.year, "final year": final_date.year}
 
 
-@app.get("/v1/interventionsPoliticalGroupPerDay/{name}")
+@app.get("/v1/interventions-political-group-per-day/{name}")
 async def get_interventions_political_group_per_day(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -516,7 +520,7 @@ async def get_interventions_political_group_per_day(
 
 # -------------------------------------------------------
 
-@app.get("/v1/politicianChannelsPrograms/{name}")
+@app.get("/v1/politician-channels-programs/{name}")
 async def get_politician_channels_programs(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -548,7 +552,7 @@ async def get_politician_channels_programs(
     return { "politician": name, "channels": final_list }
 
 
-@app.get("/v1/polGroupChannelsPrograms/{name}")
+@app.get("/v1/political-group-channels-programs/{name}")
 async def get_political_group_channels_programs(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -581,22 +585,47 @@ async def get_political_group_channels_programs(
 
 # -------------------------------------------------------
 
-@app.get("/v1/channelProgramsPolitician/{name}/{channel}")
+@app.get("/v1/channel-programs-politician/{name}/{channel}")
 async def get_channel_programs_politician(
     name: str,
     channel: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    affiliation_: str = Query(default = "all", description="Affiliation"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return every program of a channel a politician talked in, 
     specifying for each program all the topics and for how long (minutes)
     """
+    filtered_data = politicians
 
-    politician_channels = politicians.filter(pl.col('fullname') == name)
-    politician_channels = politician_channels.filter(pl.col('channel') == channel)
-    politician_channels = filter_data(politician_channels, start_date_, end_date_, kind_)
+    if channel not in channels:
+        raise HTTPException(status_code=400, detail="Channel not found")
+    filtered_data = filtered_data.filter(pl.col('channel') == channel)
+
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Politician not found")
+    filtered_data = filtered_data.filter(pl.col('fullname') == name)
+
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('affiliation') == affiliation_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+    
+    politician_channels = filter_data(filtered_data, start_date_, end_date_, kind_)
     programs_ = politician_channels.select('program').unique().to_series().to_list()
     final_list = []
 
@@ -615,22 +644,42 @@ async def get_channel_programs_politician(
     return { "politician": name, "channel": channel, "programs": final_list }
 
 
-@app.get("/v1/channelProgramsPolGroup/{name}/{channel}")
+@app.get("/v1/channel-programs-political-group/{name}/{channel}")
 async def get_channel_programs_political_group(
     name: str,
     channel: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return every program of a channel a political group talked in, 
     specifying for each program all the topics and for how long (minutes)
     """
 
-    polgroup_channels = political_groups.filter(pl.col('lastname') == name)
-    polgroup_channels = polgroup_channels.filter(pl.col('channel') == channel)
-    polgroup_channels = filter_data(polgroup_channels, start_date_, end_date_, kind_)
+    filtered_data = political_groups
+
+    if channel not in channels:
+        raise HTTPException(status_code=400, detail="Channel not found")
+    filtered_data = filtered_data.filter(pl.col('channel') == channel)
+
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Political Group not found")
+    filtered_data = filtered_data.filter(pl.col('lastname') == name)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    polgroup_channels = filter_data(filtered_data, start_date_, end_date_, kind_)
     programs_ = polgroup_channels.select('program').unique().to_series().to_list()
     final_list = []
 
@@ -650,19 +699,27 @@ async def get_channel_programs_political_group(
 
 # -------------------------------------------------------
 
-@app.get("/v1/minutesChannelPerPolitician/{channel}/{name}")
+@app.get("/v1/minutes-channel-per-politician/{channel}/{name}")
 async def get_minutes_channel_per_politician(
     channel: str,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
 ):
     """
     Return all the programs in a channel, and how many minutes a politician has intervened
     """
 
-    all_programs_channel = data.filter(pl.col('channel') == channel)
+    filtered_data = data
+
+    if channel not in channels:
+        raise HTTPException(status_code=400, detail="Channel not found")
+    all_programs_channel = filtered_data.filter(pl.col('channel') == channel)
+
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Politician not found")
+
     all_programs_channel = filter_data(all_programs_channel, start_date_, end_date_, kind_)
     programs_channel = all_programs_channel.select('program').unique().to_series().to_list()
     programs_channel.sort()
@@ -693,19 +750,28 @@ async def get_minutes_channel_per_politician(
     return { "politician": name, "programs": final_programs }
 
 
-@app.get("/v1/minutesChannelPerPolGroup/{channel}/{name}")
+@app.get("/v1/minutes-channel-per-political-group/{channel}/{name}")
 async def get_minutes_channel_per_political_group(
     channel: str,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return all the programs in a channel, and how many minutes a political group has intervened
     """
 
-    all_programs_channel = data.filter(pl.col('channel') == channel)
+    filtered_data = data
+
+    if channel not in channels:
+        raise HTTPException(status_code=400, detail="Channel not found")
+    all_programs_channel = filtered_data.filter(pl.col('channel') == channel)
+
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Political group not found")
+
     all_programs_channel = filter_data(all_programs_channel, start_date_, end_date_, kind_)
     programs_channel = all_programs_channel.select('program').unique().to_series().to_list()
     programs_channel.sort()

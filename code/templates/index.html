@@ -208,7 +208,7 @@
           });
         });
       } else if (radio.value == 'political_group'){
-        fetchData("/v1/political_groups").then(result => {
+        fetchData("/v1/political-groups").then(result => {
           result["political_groups"].forEach(valore => {
             var option = document.createElement("option");
             option.value = valore;
@@ -285,9 +285,9 @@
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
-        var t = "/v1/politicianTopics/";
+        var t = "/v1/politician-topics/";
       }else if(pg.checked == true){
-        var t = "/v1/polGroupTopics/";
+        var t = "/v1/political-group-topics/";
       } else { return 0; }
       const url = t + $('#select_pol').val()[0] + 
                   "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
@@ -369,9 +369,9 @@
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
-        var t = "/v1/politicianTopics/";
+        var t = "/v1/politician-topics/";
       }else if(pg.checked == true){
-        var t = "/v1/polGroupTopics/";
+        var t = "/v1/political-group-topics/";
       } else { return 0; }
       var values = [];
       var politicians = [];
@@ -543,9 +543,9 @@
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
-        var t = "/v1/politicianChannels/";
+        var t = "/v1/politician-channels/";
       }else if(pg.checked == true){
-        var t = "/v1/polGroupChannels/";
+        var t = "/v1/political-group-channels/";
       } else { return 0; }
       const url = t + $('#select_pol').val()[0] + 
                   "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
@@ -618,13 +618,13 @@
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
-        var t = "/v1/politicianChannels/";
-        var t2 = "/v1/politicianChannelsPrograms/"
-        var t3 = "/v1/channelProgramsPolitician/"
+        var t = "/v1/politician-channels/";
+        var t2 = "/v1/politician-channels-programs/"
+        var t3 = "/v1/channel-programs-politician/"
       }else if(pg.checked == true){
-        var t = "/v1/polGroupChannels/";
-        var t2 = "/v1/polGroupChannelsPrograms/"
-        var t3 = "/v1/channelProgramsPolGroup/"
+        var t = "/v1/political-group-channels/";
+        var t2 = "/v1/political-group-channels-programs/"
+        var t3 = "/v1/channel-programs-political-group/"
       } else { return 0; }
       const url = t + $('#select_pol').val()[0] + 
                   "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
@@ -965,9 +965,9 @@
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
-        var t = "/v1/interventionsPoliticianPerDay/";
+        var t = "/v1/interventions-politician-per-day/";
       }else if(pg.checked == true){
-        var t = "/v1/interventionsPoliticalGroupPerDay/";
+        var t = "/v1/interventions-political-group-per-day/";
       } else { return 0; }
       const url = t + $('#select_pol').val()[0] + 
                   "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
@@ -1040,9 +1040,9 @@
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
-        var t = "/v1/interventionsPoliticianPerYear/";
+        var t = "/v1/interventions-politician-per-year/";
       } else if (pg.checked == true){
-        var t = "/v1/interventionsPoliticalGroupPerYear/";
+        var t = "/v1/interventions-political-group-per-year/";
       } else { return 0; }
       var series = [];
       var years;
@@ -1143,9 +1143,9 @@
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if (p.checked == true){
-        var t = "/v1/interventionsPoliticianPerDay/";
+        var t = "/v1/interventions-politician-per-day/";
       } else if (pg.checked == true){
-        var t = "/v1/interventionsPoliticalGroupPerDay/";
+        var t = "/v1/interventions-political-group-per-day/";
       } else { return 0; }
       var series = [];
       var politicians = [];
@@ -1260,9 +1260,9 @@
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
-        var t = "/v1/politicianTopics/";
+        var t = "/v1/politician-topics/";
       }else if(pg.checked == true){
-        var t = "/v1/polGroupTopics/";
+        var t = "/v1/political-group-topics/";
       } else { return 0; }
       var politicians = [];
       var values = [];
@@ -1397,9 +1397,9 @@
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
-        var t = "/v1/minutesChannelPerPolitician/";
+        var t = "/v1/minutes-channel-per-politician/";
       }else if(pg.checked == true){
-        var t = "/v1/minutesChannelPerPolGroup/";
+        var t = "/v1/minutes-channel-per-political-group/";
       } else { return 0; }
       const selectedValues = $('#select_pol').val();
       var min_year = start_date.value.split("-")[0];
