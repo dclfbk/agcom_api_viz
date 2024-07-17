@@ -193,18 +193,46 @@ async def get_politician_topics(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    affiliation_: str = Query(default = "all", description="Affiliation"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return how much a politician talked about all the possible topics
     """
+    filtered_data = politicians
 
-    politician_topics = politicians.filter(pl.col('fullname') == name)
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Politician not found")
+    filtered_data = filtered_data.filter(pl.col('fullname') == name)
 
-    politician_topics = filter_data(politician_topics, start_date_, end_date_, kind_)
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        filtered_data = filtered_data.filter(pl.col('affiliation') == affiliation_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    politician_topics = filter_data(filtered_data, start_date_, end_date_, kind_)
+    topics_list = politician_topics.select('topic').unique().to_series().to_list()
     final_list = []
 
-    for t in topics:
+    for t in topics_list:
         temp = politician_topics.filter(pl.col('topic') == t)
         total = temp.select('duration').sum().to_series().to_list()
         interventions = temp.shape[0]
@@ -220,17 +248,40 @@ async def get_political_group_topics(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return how much a political group talked about all the possible topics 
     """
+    filtered_data = political_groups
 
-    polgroup_topics = political_groups.filter(pl.col('lastname') == name)
-    polgroup_topics = filter_data(polgroup_topics, start_date_, end_date_, kind_)
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Political Group not found")
+    filtered_data = filtered_data.filter(pl.col('lastname') == name)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    polgroup_topics = filter_data(filtered_data, start_date_, end_date_, kind_)
+    topics_list = polgroup_topics.select('topic').unique().to_series().to_list()
     final_list = []
 
-    for t in topics:
+    for t in topics_list:
         temp = polgroup_topics.filter(pl.col('topic') == t)
         total = temp.select('duration').sum().to_series().to_list()
         interventions = temp.shape[0]
@@ -247,17 +298,46 @@ async def get_politician_channels(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    affiliation_: str = Query(default = "all", description="Affiliation"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return how much a politician talked in a specific channel
     """
+    filtered_data = politicians
 
-    politician_channels = politicians.filter(pl.col('fullname') == name)
-    politician_channels = filter_data(politician_channels, start_date_, end_date_, kind_)
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Politician not found")
+    filtered_data = filtered_data.filter(pl.col('fullname') == name)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        filtered_data = filtered_data.filter(pl.col('affiliation') == affiliation_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    politician_channels = filter_data(filtered_data, start_date_, end_date_, kind_)
+    channels_list = politician_channels.select('channel').unique().to_series().to_list()
     final_list = []
 
-    for c in channels:
+    for c in channels_list:
         temp = politician_channels.filter(pl.col('channel') == c)
         total = temp.select('duration').sum().to_series().to_list()
         interventions = temp.shape[0]
@@ -273,17 +353,40 @@ async def get_political_group_channels(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return how much a political group talked in a specific channel
     """
-    polgroup_channels = political_groups.filter(pl.col('lastname') == name)
-    polgroup_channels = filter_data(polgroup_channels, start_date_, end_date_, kind_)
+    filtered_data = political_groups
 
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Political Group not found")
+    filtered_data = filtered_data.filter(pl.col('lastname') == name)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    polgroup_channels = filter_data(filtered_data, start_date_, end_date_, kind_)
+    channels_list = polgroup_channels.select('channel').unique().to_series().to_list()
     final_list = []
 
-    for c in channels:
+    for c in channels_list:
         temp = polgroup_channels.filter(pl.col('channel') == c)
         total = temp.select('duration').sum().to_series().to_list()
         interventions = temp.shape[0]
@@ -328,15 +431,37 @@ async def get_interventions_political_group(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return how much a political group has intervened in tv 
     (counting also politicians single intervents)
     """
+    filtered_data = data
 
-    interventions_polgroup = data.filter(pl.col('affiliation') == name)
-    interventions_polgroup = filter_data(interventions_polgroup, start_date_, end_date_, kind_)
+    if name not in affiliations:
+        raise HTTPException(status_code=400, detail="Political Group not found")
+    filtered_data = filtered_data.filter(pl.col('affiliation') == name)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    interventions_polgroup = filter_data(filtered_data, start_date_, end_date_, kind_)
     interventions = interventions_polgroup.shape[0]
     minutes = interventions_polgroup.select('duration').sum().to_series().to_list()
 
@@ -361,14 +486,42 @@ async def get_interventions_politician_per_year(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    affiliation_: str = Query(default = "all", description="Affiliation"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return how much a politician has intervened in tv per year
     """
+    filtered_data = politicians
 
-    interventions_politician = data.filter(pl.col('fullname') == name)
-    interventions_politician = filter_data(interventions_politician, start_date_, end_date_, kind_)
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Politician not found")
+    filtered_data = filtered_data.filter(pl.col('fullname') == name)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        filtered_data = filtered_data.filter(pl.col('affiliation') == affiliation_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    interventions_politician = filter_data(filtered_data, start_date_, end_date_, kind_)
 
     first_year = int(start_date_.split('/')[0])
     last_year = int(end_date_.split('/')[0])
@@ -396,14 +549,36 @@ async def get_interventions_political_group_per_year(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return how much a political group has intervened in tv per year
     """
+    filtered_data = political_groups
 
-    interventions_polgroup = data.filter(pl.col('lastname') == name)
-    interventions_polgroup = filter_data(interventions_polgroup, start_date_, end_date_, kind_)
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Political Group not found")
+    filtered_data = filtered_data.filter(pl.col('lastname') == name)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    interventions_polgroup = filter_data(filtered_data, start_date_, end_date_, kind_)
 
     first_year = int(start_date_.split('/')[0])
     last_year = int(end_date_.split('/')[0])
@@ -432,14 +607,42 @@ async def get_interventions_politician_per_day(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    affiliation_: str = Query(default = "all", description="Affiliation"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return how much a politician has intervened in tv per day
     """
+    filtered_data = politicians
 
-    interventions_politician = data.filter(pl.col('fullname') == name)
-    interventions_politician = filter_data(interventions_politician, start_date_, end_date_, kind_)
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Politician not found")
+    filtered_data = filtered_data.filter(pl.col('fullname') == name)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        filtered_data = filtered_data.filter(pl.col('affiliation') == affiliation_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    interventions_politician = filter_data(filtered_data, start_date_, end_date_, kind_)
 
     begin_date = dt.date(int(start_date_.split('/')[0]),
                          int(start_date_.split('/')[1]),
@@ -478,14 +681,36 @@ async def get_interventions_political_group_per_day(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return how much a political group has intervened in tv per day
     """
+    filtered_data = political_groups
 
-    interventions_polgroup = data.filter(pl.col('lastname') == name)
-    interventions_polgroup = filter_data(interventions_polgroup, start_date_, end_date_, kind_)
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Political Group not found")
+    filtered_data = filtered_data.filter(pl.col('lastname') == name)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    interventions_polgroup = filter_data(filtered_data, start_date_, end_date_, kind_)
 
     begin_date = dt.date(int(start_date_.split('/')[0]),
                          int(start_date_.split('/')[1]),
@@ -525,15 +750,43 @@ async def get_politician_channels_programs(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    affiliation_: str = Query(default = "all", description="Affiliation"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return every channel a politician talked in, specifying for each 
     channel all the programs he participated in and for how long (minutes)
     """
+    filtered_data = politicians
 
-    politician_channels = politicians.filter(pl.col('fullname') == name)
-    politician_channels = filter_data(politician_channels, start_date_, end_date_, kind_)
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Politician not found")
+    filtered_data = filtered_data.filter(pl.col('fullname') == name)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        filtered_data = filtered_data.filter(pl.col('affiliation') == affiliation_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    politician_channels = filter_data(filtered_data, start_date_, end_date_, kind_)
     channels_ = politician_channels.select('channel').unique().to_series().to_list()
     final_list = []
 
@@ -557,15 +810,38 @@ async def get_political_group_channels_programs(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return every channel a political group talked in, specifying for each 
     channel all the programs he participated in and for how long (minutes)
     """
 
-    polgroup_channels = political_groups.filter(pl.col('lastname') == name)
-    polgroup_channels = filter_data(polgroup_channels, start_date_, end_date_, kind_)
+    filtered_data = political_groups
+
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Political Group not found")
+    filtered_data = filtered_data.filter(pl.col('lastname') == name)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
+
+    polgroup_channels = filter_data(filtered_data, start_date_, end_date_, kind_)
     channels_ = polgroup_channels.select('channel').unique().to_series().to_list()
     final_list = []
 
@@ -612,7 +888,7 @@ async def get_channel_programs_politician(
 
     if affiliation_ != "all":
         if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid program")
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
         filtered_data = filtered_data.filter(pl.col('affiliation') == affiliation_)
 
     if program_ != "all":
@@ -706,6 +982,8 @@ async def get_minutes_channel_per_politician(
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return all the programs in a channel, and how many minutes a politician has intervened
@@ -715,12 +993,21 @@ async def get_minutes_channel_per_politician(
 
     if channel not in channels:
         raise HTTPException(status_code=400, detail="Channel not found")
-    all_programs_channel = filtered_data.filter(pl.col('channel') == channel)
+    filtered_data = filtered_data.filter(pl.col('channel') == channel)
 
     if name not in politicians_list:
         raise HTTPException(status_code=400, detail="Politician not found")
+    
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
 
-    all_programs_channel = filter_data(all_programs_channel, start_date_, end_date_, kind_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+
+    all_programs_channel = filter_data(filtered_data, start_date_, end_date_, kind_)
     programs_channel = all_programs_channel.select('program').unique().to_series().to_list()
     programs_channel.sort()
 
@@ -734,6 +1021,8 @@ async def get_minutes_channel_per_politician(
         temp_prgrm["program"] = prog
         temp = all_programs_channel.filter(pl.col('program') == prog)
         temp = temp.filter(pl.col('fullname') == name)
+        if topic_ != 'all':
+            temp = temp.filter(pl.col('topic') == topic_)
         datas = {}
         m_y = first_year
         x_y = last_year
@@ -757,6 +1046,7 @@ async def get_minutes_channel_per_political_group(
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    program_: str = Query(default = "all", description="Program"),
     topic_: str = Query(default = "all", description="Topic")
 ):
     """
@@ -767,12 +1057,21 @@ async def get_minutes_channel_per_political_group(
 
     if channel not in channels:
         raise HTTPException(status_code=400, detail="Channel not found")
-    all_programs_channel = filtered_data.filter(pl.col('channel') == channel)
+    filtered_data = filtered_data.filter(pl.col('channel') == channel)
 
     if name not in political_groups_list:
         raise HTTPException(status_code=400, detail="Political group not found")
+    
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
 
-    all_programs_channel = filter_data(all_programs_channel, start_date_, end_date_, kind_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+
+    all_programs_channel = filter_data(filtered_data, start_date_, end_date_, kind_)
     programs_channel = all_programs_channel.select('program').unique().to_series().to_list()
     programs_channel.sort()
 
@@ -786,6 +1085,8 @@ async def get_minutes_channel_per_political_group(
         temp_prgrm["program"] = prog
         temp = all_programs_channel.filter(pl.col('program') == prog)
         temp = temp.filter(pl.col('lastname') == name)
+        if topic_ != 'all':
+            temp = temp.filter(pl.col('topic') == topic_)
         datas = {}
         m_y = first_year
         x_y = last_year
