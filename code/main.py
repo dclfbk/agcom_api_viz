@@ -30,9 +30,9 @@ end_date = data.select('day').max().to_series()[0].strftime('%Y/%m/%d')
 kind = ["speech", "news", "both"]
 
 politicians = data.filter(pl.col("name") != "political movement")
-politicians_list = data.select('fullname').unique().to_series().to_list()
+politicians_list = politicians.select('fullname').unique().to_series().to_list()
 political_groups = data.filter(pl.col("name") == "Soggetto collettivo")
-political_groups_list = data.select('lastname').unique().to_series().to_list()
+political_groups_list = political_groups.select('lastname').unique().to_series().to_list()
 
 channels = data.select('channel').unique().to_series().to_list()
 programs = data.select('program').unique().to_series().to_list()
@@ -115,33 +115,62 @@ async def read_index():
 
 @app.get("/v1/politicians")
 async def get_politicians(
-    start_date_: str = Query(default = start_date, description="Start date"),
-    end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    start_date_: str = Query(default=start_date, description="Start date"),
+    end_date_: str = Query(default=end_date, description="End date"),
+    kind_: str = Query(default="both", description="Type of data", enum=kind),
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=500, description="Page size")
 ):
     """
-    Return all politicians
+    Return all politicians with pagination
     """
+    if page < 1 or page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+    
     politicians_ = filter_data(politicians, start_date_, end_date_, kind_)
     politicians_ = politicians_.select('fullname').unique().to_series().to_list()
+    politicians_.sort()
 
-    return { "politicians": politicians_ }
+    # Calcola gli offset per la paginazione
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    paginated_politicians = politicians_[start:end]
+
+    return {
+        "total": len(politicians_),
+        "politicians": paginated_politicians
+    }
 
 
 @app.get("/v1/political-groups")
 async def get_political_groups(
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind)
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=20, description="Page size")
 ):
     """
     Return all political groups
     """
+    if page < 1 or page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
 
     political_groups_ = filter_data(political_groups, start_date_, end_date_, kind_)
     political_groups_ = political_groups_.select('lastname').unique().to_series().to_list()
+    political_groups_.sort()
 
-    return { "political_groups": political_groups_ }
+    # Calcola gli offset per la paginazione
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    paginated_political_groups = political_groups_[start:end]
+
+    return {
+        "total": len(political_groups_),
+        "political groups": paginated_political_groups
+    }
 
 
 @app.get("/v1/channels")
@@ -229,10 +258,9 @@ async def get_politician_topics(
         filtered_data = filtered_data.filter(pl.col('topic') == topic_)
 
     politician_topics = filter_data(filtered_data, start_date_, end_date_, kind_)
-    topics_list = politician_topics.select('topic').unique().to_series().to_list()
     final_list = []
 
-    for t in topics_list:
+    for t in topics:
         temp = politician_topics.filter(pl.col('topic') == t)
         total = temp.select('duration').sum().to_series().to_list()
         interventions = temp.shape[0]
@@ -278,10 +306,9 @@ async def get_political_group_topics(
         filtered_data = filtered_data.filter(pl.col('topic') == topic_)
 
     polgroup_topics = filter_data(filtered_data, start_date_, end_date_, kind_)
-    topics_list = polgroup_topics.select('topic').unique().to_series().to_list()
     final_list = []
 
-    for t in topics_list:
+    for t in topics:
         temp = polgroup_topics.filter(pl.col('topic') == t)
         total = temp.select('duration').sum().to_series().to_list()
         interventions = temp.shape[0]
@@ -900,7 +927,7 @@ async def get_channel_programs_politician(
         if topic_ not in topics:
             raise HTTPException(status_code=400, detail="Invalid topic")
         filtered_data = filtered_data.filter(pl.col('topic') == topic_)
-    
+
     politician_channels = filter_data(filtered_data, start_date_, end_date_, kind_)
     programs_ = politician_channels.select('program').unique().to_series().to_list()
     final_list = []
@@ -997,7 +1024,7 @@ async def get_minutes_channel_per_politician(
 
     if name not in politicians_list:
         raise HTTPException(status_code=400, detail="Politician not found")
-    
+
     if program_ != "all":
         if program_ not in programs:
             raise HTTPException(status_code=400, detail="Invalid program")
@@ -1061,7 +1088,7 @@ async def get_minutes_channel_per_political_group(
 
     if name not in political_groups_list:
         raise HTTPException(status_code=400, detail="Political group not found")
-    
+
     if program_ != "all":
         if program_ not in programs:
             raise HTTPException(status_code=400, detail="Invalid program")

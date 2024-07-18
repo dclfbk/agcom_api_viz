@@ -191,7 +191,7 @@
 
     // initializing politicians/political group list (select)
     const select_pol = document.getElementById("select_pol");
-    function handleOptionChange(radio) {
+    async function handleOptionChange(radio) {
       var options = [];
       while (select_pol.options.length > 0) {
         select_pol.remove(0);
@@ -199,23 +199,37 @@
       const o = document.createElement("option");
       select_pol.appendChild(o);
       if (radio.value == 'politician'){
-        fetchData("/v1/politicians").then(result => {
-          result["politicians"].forEach(valore => {
+        var i = 1;
+        while (true){
+          var url = "/v1/politicians" + `?page=${i}`
+          i++;
+          const data = await fetchData(url);
+          if (data.politicians.length === 0) {
+            break;
+          }
+          data["politicians"].forEach(valore => {
             var option = document.createElement("option");
             option.value = valore;
             option.text = valore;
             select_pol.appendChild(option);
-          });
-        });
+            });
+        }
       } else if (radio.value == 'political_group'){
-        fetchData("/v1/political-groups").then(result => {
-          result["political_groups"].forEach(valore => {
+        var i = 1;
+        while (true){
+          var url = "/v1/political-groups" + `?page=${i}`
+          i++;
+          const data = await fetchData(url);
+          if (data["political groups"].length === 0) {
+            break;
+          }
+          data["political groups"].forEach(valore => {
             var option = document.createElement("option");
             option.value = valore;
             option.text = valore;
             select_pol.appendChild(option);
-          });
-        });
+            });
+        }
       }
     }
 
