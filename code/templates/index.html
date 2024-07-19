@@ -534,7 +534,7 @@
           };
           barChart2Instance.setOption(option2);
         }
-      })
+      });
     }
 
 
@@ -633,12 +633,10 @@
       const pg = document.getElementById("political_group");
       if(p.checked == true){
         var t = "/v1/politician-channels/";
-        var t2 = "/v1/politician-channels-programs/"
-        var t3 = "/v1/channel-programs-politician/"
+        var t2 = "/v1/channel-programs-politician/"
       }else if(pg.checked == true){
         var t = "/v1/political-group-channels/";
-        var t2 = "/v1/political-group-channels-programs/"
-        var t3 = "/v1/channel-programs-political-group/"
+        var t2 = "/v1/channel-programs-political-group/"
       } else { return 0; }
       const url = t + $('#select_pol').val()[0] + 
                   "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
@@ -774,7 +772,7 @@
         var data3 = {"channel": 'altro', "programs": []};
         var list_channels = [];
         if(p.data.name != 'altro'){
-          const url3 = t3 + encodeURIComponent($('#select_pol').val()[0]) + "/" + 
+          const url3 = t2 + encodeURIComponent($('#select_pol').val()[0]) + "/" + 
                     encodeURIComponent(p.data.name) +
                     "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
                     "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
@@ -782,7 +780,7 @@
           data3 = await fetchData(url3);
         }else{
           for (const ch of altro_channels) {
-            const url3 = t3 + encodeURIComponent($('#select_pol').val()[0]) + "/" + 
+            const url3 = t2 + encodeURIComponent($('#select_pol').val()[0]) + "/" + 
                     encodeURIComponent(ch) +
                     "?start_date_=" + start_date.value.replace(/-/g, '%2F') + 
                     "&end_date_=" + end_date.value.replace(/-/g, '%2F') + 
@@ -1392,8 +1390,13 @@
       return obj;
     }
 
+    var barPieChartInstance = null;
+
     async function barPieChart(){
       var CHANNEL = "RAI 1";
+      if (barPieChartInstance !== null) {
+        barPieChartInstance.dispose();
+      }
       if($('#select_pol').val().length == 0){ return 0; }
       document.getElementById('barChart').style.display = "none";
       document.getElementById('barChart2').style.display = 'none';
@@ -1406,8 +1409,8 @@
       document.getElementById('radarChart').style.display = "none";
       var bpC = document.getElementById('barPieChart');
       bpC.style.display = "block";
-      var barPieChart = echarts.init(bpC);
-      barPieChart.showLoading();
+      barPieChartInstance = echarts.init(bpC);
+      barPieChartInstance.showLoading();
       const p = document.getElementById("politician");
       const pg = document.getElementById("political_group");
       if(p.checked == true){
@@ -1423,9 +1426,9 @@
       var first_done = false;
       var data_timeline = [];
       var data_legend = [];
-      var data_xAxis = [];
       var series = [];
       var options = [];
+      var notZero = [];
       for (var x = min_year; x <= max_year; x++){
         data_timeline.push("year " + x);
       }
@@ -1445,21 +1448,35 @@
           if (!first_done){
             programs_list.push(prgm.program);
           }
-          if (index%2 == 0){
-            data_xAxis.push(prgm.program);
-          } else {
-            data_xAxis.push("\n" + prgm.program);
-          }
+          var check_zero = false;
           for (var yr in prgm.data){
             if(temp_list[yr] === undefined){
               temp_list[yr] = [];
             }
             temp_list[yr].push(prgm.data[yr])
+            if(prgm.data[yr] != 0){
+              check_zero = true;
+            }
           }
+          notZero[index] = check_zero;
         });
         politicians_list[value] = dataFormatter(temp_list, programs_list, min_year, max_year);
         first_done = true;
-        series.push({name: value, type: "bar"})
+        series.push({name: value, type: "bar"});
+      }
+      for (var pol in politicians_list){
+        for(var j = min_year; j <= max_year; j++){
+          for( var k = politicians_list[pol][j].length; k >= 0; k--){
+            if (!notZero[k]){
+              politicians_list[pol][j].splice(k, 1);
+            }
+          }
+        }
+      }
+      for(var i = notZero.length; i>=0; i--){
+        if (!notZero[i]){
+          programs_list.splice(i, 1);
+        }
       }
       for (var x = min_year; x <= max_year; x++){
         var data_ = [];
@@ -1473,8 +1490,16 @@
         })
         series_.push({data: data_});
         var title = CHANNEL + "   " + x;
-        options.push({title: title, series: series_});
+        var f_title = {text: title};
+        options.push({title: f_title, series: series_});
       }
+      series.push({
+        name: '%',
+        type: 'pie',
+        center: ['90%', '20%'],
+        radius: '25%',
+        z: 100
+      })
       option = {
         baseOption: {
           timeline: {
@@ -1483,7 +1508,7 @@
             // loop: false,
             autoPlay: true,
             // currentIndex: 2,
-            playInterval: 1000,
+            playInterval: 2000,
             // controlStyle: {
             //     position: 'left'
             // },
@@ -1495,7 +1520,7 @@
             }
           },
           title: {
-            subtext: "LESGOSKI"
+            subtext: "example"
           },
           tooltip: {},
           legend: {
@@ -1523,8 +1548,9 @@
             {
               type: 'category',
               axisLabel: { interval: 0 },
-              data: data_xAxis,
-              splitLine: { show: false }
+              data: programs_list,
+              splitLine: { show: false },
+              axisLabel: false
             }
           ],
           yAxis: [
@@ -1537,9 +1563,129 @@
         },
         options: options
       };
-      console.log(option)
-      barPieChart.setOption(option);
-      barPieChart.hideLoading();
+      barPieChartInstance.setOption(option);
+      barPieChartInstance.hideLoading();
+
+      var removedElements = [];
+      var removedPrograms = [];
+      var removedIndex = [];
+      var removedTotal = [];
+      var counter = 0;
+      barPieChartInstance.on("click", function(p) {
+        if(p.componentType == 'series'){
+          counter ++;
+          var c = 0;
+          for (var pol in politicians_list){
+            for(var j = min_year; j <= max_year; j++){
+              var anno_string = j + "sum"
+              var temp = politicians_list[pol][j].splice(p.dataIndex, 1);
+              removedElements.push(temp);
+              politicians_list[pol][anno_string] -= temp[0].value;
+              options[j-min_year].series[data_legend.length].data[c].value -= temp[0].value;
+            }
+            c++;
+          }
+          removedPrograms.push(programs_list.splice(p.dataIndex, 1));
+          removedIndex.push(p.dataIndex);
+          option = {
+            baseOption: {
+              timeline: {
+                axisType: 'category',
+                // realtime: false,
+                // loop: false,
+                autoPlay: true,
+                // currentIndex: 2,
+                playInterval: 2000,
+                // controlStyle: {
+                //     position: 'left'
+                // },
+                data: data_timeline,
+                label: {
+                  formatter: function (s) {
+                    return new Date(s).getFullYear();
+                  }
+                }
+              },
+              title: {
+                subtext: "example"
+              },
+              tooltip: {},
+              legend: {
+                left: 'right',
+                data: data_legend,
+              },
+              calculable: true,
+              grid: {
+                top: 80,
+                bottom: 100,
+                tooltip: {
+                  trigger: 'axis',
+                  axisPointer: {
+                    type: 'shadow',
+                    label: {
+                      show: true,
+                      formatter: function (params) {
+                        return params.value.replace('\n', '');
+                      }
+                    }
+                  }
+                }
+              },
+              xAxis: [
+                {
+                  type: 'category',
+                  axisLabel: { interval: 0 },
+                  data: programs_list,
+                  splitLine: { show: false },
+                  axisLabel: false
+                }
+              ],
+              yAxis: [
+                {
+                  type: 'value',
+                  name: 'minutes'
+                }
+              ],
+              series: series,
+              graphic: [
+                {
+                  type: 'text',
+                  left: 50,
+                  top: 20,
+                  style: {
+                    text: 'Back',
+                    fontSize: 18
+                  },
+                  onclick: function () {
+                    if(counter > 0){
+                      var rp = removedPrograms.splice(removedPrograms.length - 1, 1);
+                      var l = removedIndex.length - 1;
+                      var lx = (max_year - min_year + 1)*data_legend.length;
+                      var operation;
+                      var c = 0;
+                      var ri = removedIndex.splice(removedIndex.length - 1, 1);
+                      for (var pol in politicians_list){
+                        for(var j = min_year; j <= max_year; j++){
+                          var anno_string = j + "sum";
+                          var re = removedElements.splice((l*lx), 1);
+                          politicians_list[pol][j].splice(ri[0][0], 0, re[0][0])
+                          options[j-min_year].series[data_legend.length].data[c].value += re[0][0].value;
+                        }
+                        c++;
+                      }
+                      programs_list.splice(ri[0][0], 0, rp[0][0]);
+                      barPieChartInstance.setOption(option);
+                      counter --;
+                    }
+                  }
+                }
+              ]
+            },
+            options: options
+          };
+          barPieChartInstance.setOption(option);
+        }
+      });
     }
 
   </script>
