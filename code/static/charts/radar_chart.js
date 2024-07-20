@@ -1,0 +1,122 @@
+async function radarChart() {
+  if ($("#select_pol").val().length == 0) {
+    return 0;
+  }
+  document.getElementById("barChart").style.display = "none";
+  document.getElementById("barChart2").style.display = "none";
+  document.getElementById("barChart3").style.display = "none";
+  document.getElementById("stackedBarChart").style.display = "none";
+  document.getElementById("calendarChart").style.display = "none";
+  document.getElementById("lineChart").style.display = "none";
+  document.getElementById("lineChart2").style.display = "none";
+  document.getElementById("barPieChart").style.display = "none";
+  document.getElementById("tableDiv").style.display = "none";
+  var rC = document.getElementById("radarChart");
+  rC.style.display = "block";
+  var radarChart = echarts.init(rC);
+  radarChart.showLoading();
+  const p = document.getElementById("politician");
+  const pg = document.getElementById("political_group");
+  if (p.checked == true) {
+    var t = "/v1/politician-topics/";
+  } else if (pg.checked == true) {
+    var t = "/v1/political-group-topics/";
+  } else {
+    return 0;
+  }
+  var politicians = [];
+  var values = [];
+  const selectedValues = $("#select_pol").val();
+  for (const value of selectedValues) {
+    const url =
+      t +
+      value +
+      "?start_date_=" +
+      start_date.value.replace(/-/g, "%2F") +
+      "&end_date_=" +
+      end_date.value.replace(/-/g, "%2F") +
+      "&kind_=" +
+      cb;
+    const data = await fetchData(url);
+    if (p.checked == true) {
+      politicians.push(data["politician"]);
+    } else if (pg.checked == true) {
+      politicians.push(data["political group"]);
+    }
+    values.push(data["topics"]);
+  }
+  var minutes = [];
+  var topics = [];
+  var max_value = [];
+  values.forEach(function (value) {
+    var temp = [];
+    value.forEach(function (v) {
+      temp.push(v["minutes"]);
+    });
+    minutes.push(temp);
+  });
+  max_min = [];
+  values[0].forEach(function (t) {
+    topics.push(t["topic"]);
+    max_min.push(0);
+  });
+  values.forEach(function (data) {
+    data.forEach(function (x, index) {
+      if (max_min[index] < x["minutes"]) {
+        max_min[index] = x["minutes"] + x["minutes"] / 5;
+      } else {
+      }
+    });
+  });
+  var indicator = [];
+  var data = [];
+  topics.forEach(function (f, index) {
+    indicator.push({ name: f, max: max_min[index] });
+  });
+  politicians.forEach(function (p, index) {
+    data.push({ name: p, value: minutes[index] });
+  });
+  option = {
+    title: {
+      text: "Minutes of speaking",
+      subtext:
+        "Here we can analyze how much a politician/poolitical group talks about a topic",
+      left: "center",
+    },
+    legend: {
+      data: politicians,
+      left: "left",
+      orient: "vertical",
+      formatter: function (name) {
+        if (name.length > 35) {
+          var index = 35;
+          while (name.charAt(index) !== " " && index > 0) {
+            index--;
+          }
+          if (index === 0) {
+            index = 35;
+          }
+          return name.substr(0, index) + "\n" + name.substr(index);
+        } else {
+          return name;
+        }
+      },
+    },
+    tooltip: {
+      trigger: "item",
+    },
+    radar: {
+      indicator: indicator,
+      center: ["50%", "55%"],
+    },
+    series: [
+      {
+        name: "Minutes politicians",
+        type: "radar",
+        data: data,
+      },
+    ],
+  };
+  radarChart.setOption(option);
+  radarChart.hideLoading();
+}
