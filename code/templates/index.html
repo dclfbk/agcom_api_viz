@@ -12,6 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <link rel="stylesheet" href="https://cdn.datatables.net/2.1.0/css/dataTables.dataTables.min.css">
   <script src="https:////cdn.datatables.net/2.1.0/js/dataTables.min.js"></script>
+
 </head>
 
 
@@ -52,7 +53,7 @@
   <button id='lineChart2Button' onclick="lineChart2()">Line Chart 2</button>
   <button id='radarChartButton' onclick="radarChart()">Radar Chart</button>
   <button id='barPieChartButton' onclick="barPieChart()">Bar Pie Chart</button>
-  <button id='tableButton' onclick="table()"> Table </button>
+  <button id='tableButton'> Table </button>
 
 
   <div id="barChart" style="width: 1000px; height:600px; display: none;"></div>
@@ -74,18 +75,8 @@
           <th>Program</th>
           <th>Topic</th>
           <th>Duration</th>
-          <th>Day</th>
         </tr>
       </thead>
-      <tbody>
-        <tr>
-          <td>Tiger</td>
-          <td>Nixon</td>
-          <td>System Architect</td>
-          <td>Edinburgh</td>
-          <td>61</td>
-        </tr>
-      </tbody>
     </table>
   </div>
 
@@ -182,10 +173,11 @@
           maximumSelectionLength: 4
         });
       })
-      $('#table').DataTable();
-      $('#table').click(() => {
-        console.log('hello')
-      })
+      var tab = $("#table").DataTable();
+      var still_running = true;
+      $('#tableButton').click(function() {
+        table(tab, still_running);
+      });
     });
 
 
@@ -207,6 +199,8 @@
         radarChart();
       }else if(document.getElementById('barPieChart').style.display == "block"){
         barPieChart();
+      }else if(document.getElementById('tableDiv').style.display == "block"){
+        table();
       }
     }
 

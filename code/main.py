@@ -14,6 +14,7 @@ from fastapi import FastAPI, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 import polars as pl
+import json
 warnings.filterwarnings('ignore')
 
 
@@ -29,7 +30,7 @@ end_date = data.select('day').max().to_series()[0].strftime('%Y/%m/%d')
 
 kind = ["speech", "news", "both"]
 
-politicians = data.filter(pl.col("name") != "political movement")
+politicians = data.filter(pl.col("name") != "Soggetto collettivo")
 politicians_list = politicians.select('fullname').unique().to_series().to_list()
 political_groups = data.filter(pl.col("name") == "Soggetto collettivo")
 political_groups_list = political_groups.select('lastname').unique().to_series().to_list()
@@ -1009,6 +1010,7 @@ async def get_minutes_channel_per_politician(
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    affiliation_: str = Query(default = "all", description="Affiliation"),
     program_: str = Query(default = "all", description="Program"),
     topic_: str = Query(default = "all", description="Topic")
 ):
@@ -1016,7 +1018,7 @@ async def get_minutes_channel_per_politician(
     Return all the programs in a channel, and how many minutes a politician has intervened
     """
 
-    filtered_data = data
+    filtered_data = politicians
 
     if channel not in channels:
         raise HTTPException(status_code=400, detail="Channel not found")
@@ -1024,6 +1026,11 @@ async def get_minutes_channel_per_politician(
 
     if name not in politicians_list:
         raise HTTPException(status_code=400, detail="Politician not found")
+
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        filtered_data = filtered_data.filter(pl.col('affiliation') == affiliation_)
 
     if program_ != "all":
         if program_ not in programs:
@@ -1080,7 +1087,7 @@ async def get_minutes_channel_per_political_group(
     Return all the programs in a channel, and how many minutes a political group has intervened
     """
 
-    filtered_data = data
+    filtered_data = political_groups
 
     if channel not in channels:
         raise HTTPException(status_code=400, detail="Channel not found")
@@ -1128,3 +1135,99 @@ async def get_minutes_channel_per_political_group(
         final_programs.append(temp_prgrm)
 
     return { "political group": name, "programs": final_programs }
+
+# -------------------------------------------------------
+
+@app.get("/v1/channels-programs-topics-politician/{name}")
+async def get_channels_programs_topics_politician(
+    name: str,
+    start_date_: str = Query(default=start_date, description="Start date"),
+    end_date_: str = Query(default=end_date, description="End date"),
+    kind_: str = Query(default="both", description="Type of data", enum=kind),
+    channel_: str = Query(default="all", description="Channel"),
+    affiliation_: str = Query(default="all", description="Affiliation"),
+    program_: str = Query(default="all", description="Program"),
+    topic_: str = Query(default="all", description="Topic"),
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=1, description="Page size"),
+    program_page: int = Query(default=1, description="Program page number"),
+    program_page_size: int = Query(default=1, description="Program page size")
+):
+    """
+    Return for a politician, all the channels he spoke to, in which programs, 
+    what topic it was about, duration and date
+    """
+
+    if page < 1 or page_size < 1 or program_page < 1 or program_page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+
+    filtered_data = data
+
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Politician not found")
+    filtered_data = filtered_data.filter(pl.col('fullname') == name)
+
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        filtered_data = filtered_data.filter(pl.col('affiliation') == affiliation_)
+
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+
+    all_channels = filter_data(filtered_data, start_date_, end_date_, kind_)
+    channels_p = all_channels.select('channel').unique().to_series().to_list()
+    channels_p.sort()
+
+    final_channels = []
+
+    for channel in channels_p:
+        single_channel = all_channels.filter(pl.col('channel') == channel)
+        programs_in_channel = single_channel.select('program').unique().to_series().to_list()
+        programs_in_channel.sort()
+        final_programs = []
+
+        # Paginazione dei programmi
+        start_program_index = (program_page - 1) * program_page_size
+        end_program_index = start_program_index + program_page_size
+        paginated_programs = programs_in_channel[start_program_index:end_program_index]
+
+        for program in paginated_programs:
+            single_program = single_channel.filter(pl.col('program') == program)
+            topics_in_program = single_program.select('topic').unique().to_series().to_list()
+            topics_in_program.sort()
+            final_topics = []
+            for topic in topics_in_program:
+                single_topic = single_program.filter(pl.col('topic') == topic)
+                minutes = single_topic.select('duration').sum().to_series().to_list()[0]
+                final_topics.append({"topic": topic, "minutes": minutes})
+            final_programs.append({"program": program, "topics": final_topics})
+
+        final_channels.append({"channel": channel, "programs": final_programs})
+
+    # Paginazione dei canali
+    start_index = (page - 1) * page_size
+    end_index = start_index + page_size
+    paginated_channels = final_channels[start_index:end_index]
+
+    return {
+        "politician": name,
+        "channels": paginated_channels,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (len(final_channels) + page_size - 1) // page_size,
+        "program_page": program_page,
+        "program_page_size": program_page_size,
+        "total_program_pages": (len(programs_in_channel) + program_page_size - 1)//program_page_size
+    }
