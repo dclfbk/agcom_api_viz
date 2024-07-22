@@ -6,7 +6,6 @@ async function table(tab, still_running) {
     return 0;
   }
   document.getElementById("tableDiv").style.display = "block";
-  document.getElementById("barChart").style.display = "none";
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("barChart3").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
@@ -24,6 +23,34 @@ async function table(tab, still_running) {
   } else {
     return 0;
   }
+  var url_c = "";
+  var url_p = "";
+  var url_t = "";
+  var url_a = "";
+  if (
+    $("#select_channels").val()[0] != undefined &&
+    $("#select_channels").val()[0] != ""
+  ) {
+    url_c += `&channel_=${$("#select_channels").val()[0]}`;
+  }
+  if (
+    $("#select_programs").val()[0] != undefined &&
+    $("#select_programs").val()[0] != ""
+  ) {
+    url_p += `&program_=${$("#select_programs").val()[0]}`;
+  }
+  if (
+    $("#select_topics").val()[0] != undefined &&
+    $("#select_topics").val()[0] != ""
+  ) {
+    url_t += `&topic_=${$("#select_topics").val()[0]}`;
+  }
+  if (
+    $("#select_affiliations").val()[0] != undefined &&
+    $("#select_affiliations").val()[0] != ""
+  ) {
+    url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
+  }
   var url =
     t +
     $("#select_pol").val()[0] +
@@ -32,7 +59,11 @@ async function table(tab, still_running) {
     "&end_date_=" +
     end_date.value.replace(/-/g, "%2F") +
     "&kind_=" +
-    cb;
+    cb +
+    url_a +
+    url_c +
+    url_p +
+    url_t;
   var i = 1;
   while (true) {
     url += `&page=${i}`;

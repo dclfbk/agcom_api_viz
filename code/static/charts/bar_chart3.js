@@ -5,7 +5,6 @@ async function barChart3() {
   if ($("#select_pol").val().length == 0) {
     return 0;
   }
-  document.getElementById("barChart").style.display = "none";
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
   document.getElementById("calendarChart").style.display = "none";
@@ -29,6 +28,34 @@ async function barChart3() {
   } else {
     return 0;
   }
+  var url_c = "";
+  var url_p = "";
+  var url_t = "";
+  var url_a = "";
+  if (
+    $("#select_channels").val()[0] != undefined &&
+    $("#select_channels").val()[0] != ""
+  ) {
+    url_c += `&channel_=${$("#select_channels").val()[0]}`;
+  }
+  if (
+    $("#select_programs").val()[0] != undefined &&
+    $("#select_programs").val()[0] != ""
+  ) {
+    url_p += `&program_=${$("#select_programs").val()[0]}`;
+  }
+  if (
+    $("#select_topics").val()[0] != undefined &&
+    $("#select_topics").val()[0] != ""
+  ) {
+    url_t += `&topic_=${$("#select_topics").val()[0]}`;
+  }
+  if (
+    $("#select_affiliations").val()[0] != undefined &&
+    $("#select_affiliations").val()[0] != ""
+  ) {
+    url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
+  }
   const url =
     t +
     $("#select_pol").val()[0] +
@@ -37,7 +64,11 @@ async function barChart3() {
     "&end_date_=" +
     end_date.value.replace(/-/g, "%2F") +
     "&kind_=" +
-    cb;
+    cb +
+    url_a +
+    url_c +
+    url_p +
+    url_t;
   const data = await fetchData(url);
   var final = [];
   for (let i = 0; i < data["channels"].length; i++) {
@@ -143,7 +174,10 @@ async function barChart3() {
         "&end_date_=" +
         end_date.value.replace(/-/g, "%2F") +
         "&kind_=" +
-        cb;
+        cb +
+        url_a +
+        url_p +
+        url_t;
       data3 = await fetchData(url3);
     } else {
       for (const ch of altro_channels) {
@@ -171,7 +205,7 @@ async function barChart3() {
     });
     var series3 = [];
     var legenda = {};
-    TOPICS.topics.forEach((t) => {
+    TOPICS.forEach((t) => {
       var programValue = [];
       data3.programs.forEach((r, index) => {
         var found = false;
@@ -240,6 +274,7 @@ async function barChart3() {
           type: "shadow",
         },
         formatter: function (params) {
+          console.log(params, params[0]);
           var result = "";
           if (p.name == "altro") {
             result +=

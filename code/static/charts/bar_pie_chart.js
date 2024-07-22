@@ -1,5 +1,4 @@
 async function barPieChart() {
-  var CHANNEL = "RAI 1";
   function dataFormatter(obj, list, m_y, x_y) {
     var temp;
     for (var year = m_y; year <= x_y; year++) {
@@ -22,12 +21,14 @@ async function barPieChart() {
   if (barPieChartInstance !== null) {
     barPieChartInstance.dispose();
   }
-  if ($("#select_pol").val().length == 0) {
+  if (
+    $("#select_pol").val().length == 0 ||
+    $("#select_channels").val()[0] == undefined ||
+    $("#select_channels").val()[0] == ""
+  ) {
     return 0;
   }
-  document.getElementById("barChart").style.display = "none";
   document.getElementById("barChart2").style.display = "none";
-  // document.getElementById('pieChart').style.display = "none";
   document.getElementById("barChart3").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
   document.getElementById("calendarChart").style.display = "none";
@@ -62,10 +63,38 @@ async function barPieChart() {
   for (var x = min_year; x <= max_year; x++) {
     data_timeline.push("year " + x);
   }
+  var url_c = "";
+  var url_p = "";
+  var url_t = "";
+  var url_a = "";
+  if (
+    $("#select_channels").val()[0] != undefined &&
+    $("#select_channels").val()[0] != ""
+  ) {
+    url_c += `${$("#select_channels").val()[0]}`;
+  }
+  if (
+    $("#select_programs").val()[0] != undefined &&
+    $("#select_programs").val()[0] != ""
+  ) {
+    url_p += `&program_=${$("#select_programs").val()[0]}`;
+  }
+  if (
+    $("#select_topics").val()[0] != undefined &&
+    $("#select_topics").val()[0] != ""
+  ) {
+    url_t += `&topic_=${$("#select_topics").val()[0]}`;
+  }
+  if (
+    $("#select_affiliations").val()[0] != undefined &&
+    $("#select_affiliations").val()[0] != ""
+  ) {
+    url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
+  }
   for (const value of selectedValues) {
     const url =
       t +
-      encodeURI(CHANNEL) +
+      url_c +
       "/" +
       value +
       "?start_date_=" +
@@ -73,7 +102,10 @@ async function barPieChart() {
       "&end_date_=" +
       end_date.value.replace(/-/g, "%2F") +
       "&kind_=" +
-      cb;
+      cb +
+      url_a +
+      url_p +
+      url_t;
     const data = await fetchData(url);
     if (p.checked == true) {
       data_legend.push(data["politician"]);
@@ -131,7 +163,7 @@ async function barPieChart() {
       series_.push({ data: politicians_list[p][x] });
     });
     series_.push({ data: data_ });
-    var title = CHANNEL + "   " + x;
+    var title = url_c + "   " + x;
     var f_title = { text: title };
     options.push({ title: f_title, series: series_ });
   }
@@ -227,127 +259,126 @@ async function barPieChart() {
   var removedElements = [];
   var removedPrograms = [];
   var removedIndex = [];
-  var removedTotal = [];
   var counter = 0;
   barPieChartInstance.on("click", function (p) {
-    if (p.componentType == "series") {
-      counter++;
-      var c = 0;
-      for (var pol in politicians_list) {
-        for (var j = min_year; j <= max_year; j++) {
-          var anno_string = j + "sum";
-          var temp = politicians_list[pol][j].splice(p.dataIndex, 1);
-          removedElements.push(temp);
-          politicians_list[pol][anno_string] -= temp[0].value;
-          options[j - min_year].series[data_legend.length].data[c].value -=
-            temp[0].value;
+    if (programs_list.length > 1) {
+      if (p.componentType == "series") {
+        counter++;
+        var c = 0;
+        for (var pol in politicians_list) {
+          for (var j = min_year; j <= max_year; j++) {
+            var anno_string = j + "sum";
+            var temp = politicians_list[pol][j].splice(p.dataIndex, 1);
+            removedElements.push(temp);
+            politicians_list[pol][anno_string] -= temp[0].value;
+            options[j - min_year].series[data_legend.length].data[c].value -=
+              temp[0].value;
+          }
+          c++;
         }
-        c++;
-      }
-      removedPrograms.push(programs_list.splice(p.dataIndex, 1));
-      removedIndex.push(p.dataIndex);
-      option = {
-        baseOption: {
-          timeline: {
-            axisType: "category",
-            // realtime: false,
-            // loop: false,
-            autoPlay: false,
-            // currentIndex: 2,
-            playInterval: 2000,
-            // controlStyle: {
-            //     position: 'left'
-            // },
-            data: data_timeline,
-            label: {
-              formatter: function (s) {
-                return new Date(s).getFullYear();
+        removedPrograms.push(programs_list.splice(p.dataIndex, 1));
+        removedIndex.push(p.dataIndex);
+        option = {
+          baseOption: {
+            timeline: {
+              axisType: "category",
+              // realtime: false,
+              // loop: false,
+              autoPlay: false,
+              // currentIndex: 2,
+              playInterval: 2000,
+              // controlStyle: {
+              //     position: 'left'
+              // },
+              data: data_timeline,
+              label: {
+                formatter: function (s) {
+                  return new Date(s).getFullYear();
+                },
               },
             },
-          },
-          title: {
-            subtext: "example",
-          },
-          tooltip: {},
-          legend: {
-            left: "right",
-            data: data_legend,
-          },
-          calculable: true,
-          grid: {
-            top: 80,
-            bottom: 100,
-            tooltip: {
-              trigger: "axis",
-              axisPointer: {
-                type: "shadow",
-                label: {
-                  show: true,
-                  formatter: function (params) {
-                    return params.value.replace("\n", "");
+            title: {
+              subtext: "example",
+            },
+            tooltip: {},
+            legend: {
+              left: "right",
+              data: data_legend,
+            },
+            calculable: true,
+            grid: {
+              top: 80,
+              bottom: 100,
+              tooltip: {
+                trigger: "axis",
+                axisPointer: {
+                  type: "shadow",
+                  label: {
+                    show: true,
+                    formatter: function (params) {
+                      return params.value.replace("\n", "");
+                    },
                   },
                 },
               },
             },
-          },
-          xAxis: [
-            {
-              type: "category",
-              axisLabel: { interval: 0 },
-              data: programs_list,
-              splitLine: { show: false },
-              axisLabel: false,
-            },
-          ],
-          yAxis: [
-            {
-              type: "value",
-              name: "minutes",
-            },
-          ],
-          series: series,
-          graphic: [
-            {
-              type: "text",
-              left: 50,
-              top: 20,
-              style: {
-                text: "Back",
-                fontSize: 18,
+            xAxis: [
+              {
+                type: "category",
+                axisLabel: { interval: 0 },
+                data: programs_list,
+                splitLine: { show: false },
+                axisLabel: false,
               },
-              onclick: function () {
-                if (counter > 0) {
-                  var rp = removedPrograms.splice(
-                    removedPrograms.length - 1,
-                    1
-                  );
-                  var l = removedIndex.length - 1;
-                  var lx = (max_year - min_year + 1) * data_legend.length;
-                  var operation;
-                  var c = 0;
-                  var ri = removedIndex.splice(removedIndex.length - 1, 1);
-                  for (var pol in politicians_list) {
-                    for (var j = min_year; j <= max_year; j++) {
-                      var anno_string = j + "sum";
-                      var re = removedElements.splice(l * lx, 1);
-                      politicians_list[pol][j].splice(ri[0][0], 0, re[0][0]);
-                      options[j - min_year].series[data_legend.length].data[
-                        c
-                      ].value += re[0][0].value;
+            ],
+            yAxis: [
+              {
+                type: "value",
+                name: "minutes",
+              },
+            ],
+            series: series,
+            graphic: [
+              {
+                type: "text",
+                left: 50,
+                top: 20,
+                style: {
+                  text: "Back",
+                  fontSize: 18,
+                },
+                onclick: function () {
+                  if (counter > 0) {
+                    var rp = removedPrograms.splice(
+                      removedPrograms.length - 1,
+                      1
+                    );
+                    var l = removedIndex.length - 1;
+                    var lx = (max_year - min_year + 1) * data_legend.length;
+                    var c = 0;
+                    var ri = removedIndex.splice(removedIndex.length - 1, 1);
+                    for (var pol in politicians_list) {
+                      for (var j = min_year; j <= max_year; j++) {
+                        var re = removedElements.splice(l * lx, 1);
+                        politicians_list[pol][j].splice(ri[0][0], 0, re[0][0]);
+                        options[j - min_year].series[data_legend.length].data[
+                          c
+                        ].value += re[0][0].value;
+                      }
+                      c++;
                     }
-                    c++;
+                    programs_list.splice(ri[0][0], 0, rp[0][0]);
+                    barPieChartInstance.setOption(option);
+                    counter--;
                   }
-                  programs_list.splice(ri[0][0], 0, rp[0][0]);
-                  barPieChartInstance.setOption(option);
-                  counter--;
-                }
+                },
               },
-            },
-          ],
-        },
-        options: options,
-      };
-      barPieChartInstance.setOption(option);
+            ],
+          },
+          options: options,
+        };
+        barPieChartInstance.setOption(option);
+      }
     }
   });
 }

@@ -2,7 +2,9 @@ async function radarChart() {
   if ($("#select_pol").val().length == 0) {
     return 0;
   }
-  document.getElementById("barChart").style.display = "none";
+  if (radarChartInstance !== null) {
+    radarChartInstance.dispose();
+  }
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("barChart3").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
@@ -13,8 +15,8 @@ async function radarChart() {
   document.getElementById("tableDiv").style.display = "none";
   var rC = document.getElementById("radarChart");
   rC.style.display = "block";
-  var radarChart = echarts.init(rC);
-  radarChart.showLoading();
+  radarChartInstance = echarts.init(rC);
+  radarChartInstance.showLoading();
   const p = document.getElementById("politician");
   const pg = document.getElementById("political_group");
   if (p.checked == true) {
@@ -26,6 +28,34 @@ async function radarChart() {
   }
   var politicians = [];
   var values = [];
+  var url_c = "";
+  var url_p = "";
+  var url_t = "";
+  var url_a = "";
+  if (
+    $("#select_channels").val()[0] != undefined &&
+    $("#select_channels").val()[0] != ""
+  ) {
+    url_c += `&channel_=${$("#select_channels").val()[0]}`;
+  }
+  if (
+    $("#select_programs").val()[0] != undefined &&
+    $("#select_programs").val()[0] != ""
+  ) {
+    url_p += `&program_=${$("#select_programs").val()[0]}`;
+  }
+  if (
+    $("#select_topics").val()[0] != undefined &&
+    $("#select_topics").val()[0] != ""
+  ) {
+    url_t += `&topic_=${$("#select_topics").val()[0]}`;
+  }
+  if (
+    $("#select_affiliations").val()[0] != undefined &&
+    $("#select_affiliations").val()[0] != ""
+  ) {
+    url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
+  }
   const selectedValues = $("#select_pol").val();
   for (const value of selectedValues) {
     const url =
@@ -36,7 +66,11 @@ async function radarChart() {
       "&end_date_=" +
       end_date.value.replace(/-/g, "%2F") +
       "&kind_=" +
-      cb;
+      cb +
+      url_a +
+      url_c +
+      url_p +
+      url_t;
     const data = await fetchData(url);
     if (p.checked == true) {
       politicians.push(data["politician"]);
@@ -117,6 +151,6 @@ async function radarChart() {
       },
     ],
   };
-  radarChart.setOption(option);
-  radarChart.hideLoading();
+  radarChartInstance.setOption(option);
+  radarChartInstance.hideLoading();
 }

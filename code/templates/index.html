@@ -25,7 +25,19 @@
       <input type="radio" id="political_group" value="political_group" name="choose_pol" onclick="handleOptionChange(this)">
       <label for="political_group">Political Group</label>
     </form>
-    <select id="select_pol" style="width: 100%;" multiple="multiple" onchange="updateCharts()">
+    <select id="select_pol" style="width: 100%;" multiple="multiple" onchange="updateCharts(), fetchAffiliations()">
+      <option></option>
+    </select>
+    <select id="select_channels" style="width: 100%;" multiple="multiple" onchange="updateCharts(), fetchPrograms()">
+      <option></option>
+    </select>
+    <select id="select_programs" style="width: 100%;" multiple="multiple" onchange="updateCharts()">
+      <option></option>
+    </select>
+    <select id="select_topics" style="width: 100%;" multiple="multiple" onchange="updateCharts()">
+      <option></option>
+    </select>
+    <select id="select_affiliations" style="width: 100%;" multiple="multiple" onchange="updateCharts()">
       <option></option>
     </select>
   </div>
@@ -45,7 +57,6 @@
   </div>
 
 
-  <button id='barChartButton' onclick="barChart()">Bar Chart</button>
   <button id='barChart2Button' onclick="barChart2()">Bar Chart 2</button>
   <button id='barChart3Button' onclick="barChart3()">Bar Chart 3</button>
   <button id='calendarChartButton' onclick="calendarChart()">Calendar Chart</button>
@@ -55,8 +66,6 @@
   <button id='barPieChartButton' onclick="barPieChart()">Bar Pie Chart</button>
   <button id='tableButton'> Table </button>
 
-
-  <div id="barChart" style="width: 1000px; height:600px; display: none;"></div>
   <div id="barChart2" style="width: 1000px; height:600px; display: none;"></div>
   <div id="barChart3" style="width: 1000px; height:600px; display: none;"></div>
   <div id="stackedBarChart" style="width: 1000px; height:1600px; display: none;"></div>
@@ -114,22 +123,32 @@
     }
 
 
-    // initializing select pol
     $(document).ready(function() {
       $('#select_pol').select2({
         placeholder: 'Cerca politico',
         allowClear: true,
         maximumSelectionLength: 1
       });
-      $('#barChartButton').click(function() {
-        $('#select_pol').select2({
-          maximumSelectionLength: 1
-        });
-        if($('#select_pol').val().length > 1){
-          temp = $('#select_pol').val()[0];
-          $('#select_pol').val([temp]).trigger('change');
-        }
-      })
+      $('#select_channels').select2({
+        placeholder: 'Cerca canale',
+        allowClear: true,
+        maximumSelectionLength: 1
+      });
+      $('#select_programs').select2({
+        placeholder: 'Cerca programma',
+        allowClear: true,
+        maximumSelectionLength: 1
+      });
+      $('#select_topics').select2({
+        placeholder: 'Cerca argomento',
+        allowClear: true,
+        maximumSelectionLength: 1
+      });
+      $('#select_affiliations').select2({
+        placeholder: 'Cerca partito',
+        allowClear: true,
+        maximumSelectionLength: 1
+      });
       $('#barChart2Button').click(function() {
         $('#select_pol').select2({
           maximumSelectionLength: 4
@@ -178,14 +197,16 @@
       $('#tableButton').click(function() {
         table(tab, still_running);
       });
+      fetchChannels();
+      fetchPrograms();
+      fetchTopics();
+      fetchAffiliations();
     });
 
 
     //update charts
     async function updateCharts(){
-      if (document.getElementById('barChart').style.display == "block"){
-        barChart();
-      }else if(document.getElementById('barChart2').style.display == "block"){
+      if (document.getElementById('barChart2').style.display == "block"){
         barChart2();
       }else if(document.getElementById('barChart3').style.display == "block"){
         barChart3();
@@ -205,58 +226,24 @@
     }
 
 
-    // initializing politicians/political group list (select)
-    const select_pol = document.getElementById("select_pol");
-    async function handleOptionChange(radio) {
-      var options = [];
-      while (select_pol.options.length > 0) {
-        select_pol.remove(0);
-      }
-      const o = document.createElement("option");
-      select_pol.appendChild(o);
-      if (radio.value == 'politician'){
-        var i = 1;
-        while (true){
-          var url = "/v1/politicians" + `?page=${i}`
-          i++;
-          const data = await fetchData(url);
-          if (data.politicians.length === 0) {
-            break;
-          }
-          data["politicians"].forEach(valore => {
-            var option = document.createElement("option");
-            option.value = valore;
-            option.text = valore;
-            select_pol.appendChild(option);
-            });
-        }
-      } else if (radio.value == 'political_group'){
-        var i = 1;
-        while (true){
-          var url = "/v1/political-groups" + `?page=${i}`
-          i++;
-          const data = await fetchData(url);
-          if (data["political groups"].length === 0) {
-            break;
-          }
-          data["political groups"].forEach(valore => {
-            var option = document.createElement("option");
-            option.value = valore;
-            option.text = valore;
-            select_pol.appendChild(option);
-            });
-        }
-      }
-    }
-
-
     // initialize dates
     const start_date = document.getElementById("start_date");
     const end_date = document.getElementById("end_date");
-    var TOPICS;
-    fetchData("/v1/topics").then(result => {
-      TOPICS = result;
-    });
+    var TOPICS = [];
+    async function fetchTopics(){
+      i = 1;
+      while(true){
+        const data = await fetchData(`/v1/topics?page=${i}`)
+        i++;
+        if(data.topics.length === 0){
+          break;
+        }
+        data["topics"].forEach((val) => {
+          TOPICS.push(val)
+        });
+      }
+    }
+    fetchTopics();
     fetchData("/v1/dates").then(result => {
       start_date.value = result["first_date"];
       start_date.min = result["first_date"];
@@ -264,7 +251,7 @@
       end_date.value = result["end_date"];
       end_date.min = result["first_date"];
       end_date.max = result["end_date"];
-    })
+    });
     async function limitEndDate(){
       end_date.min = start_date.value;
       if(Number(end_date.value.split('-')[0]) < Number(start_date.value.split('-')[0]) ||
@@ -293,7 +280,8 @@
       }
     }
 
-
+    var radarChartInstance = null;
+    var lineChart2Instance = null;
     var barChart2Instance = null;
     var barChart3Instance = null;
     var barPieChartInstance = null;
@@ -301,7 +289,6 @@
 
   </script>
 
-  <script src="/static/charts/bar_chart.js"></script>
   <script src="/static/charts/bar_chart2.js"></script>
   <script src="/static/charts/bar_chart3.js"></script>
   <script src="/static/charts/bar_pie_chart.js"></script>
@@ -310,6 +297,7 @@
   <script src="/static/charts/line_chart2.js"></script>
   <script src="/static/charts/radar_chart.js"></script>
   <script src="/static/charts/table.js"></script>
+  <script src="/static/functions/selects.js"></script>
 
 </body>
 

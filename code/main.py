@@ -175,46 +175,97 @@ async def get_political_groups(
 
 
 @app.get("/v1/channels")
-async def get_channels():
+async def get_channels(
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=3, description="Page size")
+):
     """
     Return all channels
     """
 
     channels_ = data.select('channel').unique().to_series().to_list()
+    channels_.sort()
 
-    return { "channels": channels_ }
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    paginated_channels = channels_[start:end]
+
+    return { "channels": paginated_channels }
 
 
 @app.get("/v1/programs")
-async def get_programs():
+async def get_programs(
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=50, description="Page size"),
+    channel_: str = Query(default = "all", description="Channel")
+):
     """
     Return all programs
     """
-    programs_ = data.select('program').unique().to_series().to_list()
+    filtered_data = data
 
-    return { "programs": programs_ }
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        filtered_data = filtered_data.filter(pl.col('channel') == channel_)
+
+    programs_ = filtered_data.select('program').unique().to_series().to_list()
+    programs_.sort()
+
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    paginated_programs = programs_[start:end]
+
+    return { "programs": paginated_programs }
 
 
 @app.get("/v1/affiliations")
-async def get_affiliations():
+async def get_affiliations(
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=10, description="Page size"),
+    politician_: str = Query(default = "all", description="Politician")
+):
     """
     Return all affiliations
     """
+    filtered_data = data
 
-    affiliations_ = data.select('affiliation').unique().to_series().to_list()
+    if politician_ != "all":
+        if politician_ not in politicians_list:
+            raise HTTPException(status_code=400, detail="Invalid politician")
+        filtered_data = filtered_data.filter(pl.col('fullname') == politician_)
 
-    return { "affiliations": affiliations_ }
+    affiliations_ = filtered_data.select('affiliation').unique().to_series().to_list()
+    affiliations_.sort()
+
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    paginated_affiliations = affiliations_[start:end]
+
+    return { "affiliations": paginated_affiliations }
 
 
 @app.get("/v1/topics")
-async def get_topics():
+async def get_topics(
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=3, description="Page size")
+):
     """
     Return all topics
     """
 
     topics_ = data.select('topic').unique().to_series().to_list()
+    topics_.sort()
 
-    return { "topics": topics_ }
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    paginated_topics_ = topics_[start:end]
+
+    return { "topics": paginated_topics_ }
 
 # -------------------------------------------------------
 
