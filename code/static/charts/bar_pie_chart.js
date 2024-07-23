@@ -38,6 +38,7 @@ async function barPieChart() {
   document.getElementById("radarChart2").style.display = "none";
   document.getElementById("radarChart3").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
+  document.getElementById("loadingScreen").style.display = "none";
   var bpC = document.getElementById("barPieChart");
   bpC.style.display = "block";
   barPieChartInstance = echarts.init(bpC);

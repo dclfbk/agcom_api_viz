@@ -12,6 +12,7 @@ async function lineChart() {
   document.getElementById("radarChart3").style.display = "none";
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
+  document.getElementById("loadingScreen").style.display = "none";
   var lC = document.getElementById("lineChart");
   lC.style.display = "block";
   var lineChart = echarts.init(lC);

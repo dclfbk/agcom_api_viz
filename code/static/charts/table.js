@@ -1,11 +1,17 @@
 async function table(tab, still_running) {
+  document.getElementById("tableDiv").style.display = "none";
+  document.getElementById("loadingScreen").style.display = "block";
+
   tab = $("#table").DataTable();
   tab.clear();
-  if ($("#select_pol").val().length == 0) {
+  if (
+    $("#select_pol").val()[0] == undefined ||
+    $("#select_pol").val()[0] == ""
+  ) {
     still_running = false;
+    document.getElementById("loadingScreen").style.display = "none";
     return 0;
   }
-  document.getElementById("tableDiv").style.display = "block";
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("barChart3").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
@@ -23,6 +29,7 @@ async function table(tab, still_running) {
   } else if (pg.checked == true) {
     var t = "/v1/channels-programs-topics-political-group/";
   } else {
+    document.getElementById("loadingScreen").style.display = "none"; // Nascondi la schermata di caricamento
     return 0;
   }
   var url_c = "";
@@ -68,14 +75,14 @@ async function table(tab, still_running) {
     url_t;
   var i = 1;
   while (true) {
-    url += `&page=${i}`;
+    var pageUrl = `${url}&page=${i}`;
     i++;
     var j = 1;
     var data = 0;
     while (true) {
-      url += `&program_page=${j}`;
+      var programPageUrl = `${pageUrl}&program_page=${j}`;
       j++;
-      data = await fetchData(url);
+      data = await fetchData(programPageUrl);
       if (data.channels[0].programs.length === 0) {
         break;
       }
@@ -94,5 +101,10 @@ async function table(tab, still_running) {
     if (i > data.total_pages) {
       break;
     }
+  }
+
+  if (document.getElementById("loadingScreen").style.display != "none") {
+    document.getElementById("loadingScreen").style.display = "none";
+    document.getElementById("tableDiv").style.display = "block";
   }
 }

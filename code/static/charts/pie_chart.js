@@ -13,6 +13,7 @@ async function pieChart() {
   document.getElementById("radarChart2").style.display = "none";
   document.getElementById("radarChart3").style.display = "none";
   document.getElementById("barPieChart").style.display = "none";
+  document.getElementById("loadingScreen").style.display = "none";
   var pC = document.getElementById("pieChart");
   pC.style.display = "block";
   var pieChart = echarts.init(pC);

@@ -20,6 +20,7 @@ async function radarChart3() {
   document.getElementById("radarChart2").style.display = "none";
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
+  document.getElementById("loadingScreen").style.display = "none";
 
   var rC = document.getElementById("radarChart3");
   rC.style.display = "block";

@@ -15,6 +15,7 @@ async function calendarChart() {
   document.getElementById("radarChart3").style.display = "none";
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
+  document.getElementById("loadingScreen").style.display = "none";
   var cC = document.getElementById("calendarChart");
   cC.style.display = "block";
   calendarChartInstance = echarts.init(cC);

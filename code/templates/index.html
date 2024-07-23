@@ -80,6 +80,9 @@
   <div id="barPieChart" style="width: 1000px; height:600px; display: none;"></div>
 
 
+  <div id="loadingScreen" style="display: none;">
+    <p>Caricamento in corso...</p>
+  </div>
   <div id="tableDiv" style="display: none;">
     <table id="table" class="display" style="width:100%;">
       <thead>
@@ -176,11 +179,14 @@
           maximumSelectionLength: 4
         });
       })
-      var tab = $("#table").DataTable();
-      var still_running = true;
-      $('#tableButton').click(function() {
-        table(tab, still_running);
+      $(document).ready(function() {
+        var tab = $("#table").DataTable();
+        var still_running = true;
+        $('#tableButton').click(function() {
+          table(tab, still_running);
+        });
       });
+
 
       fetchChannels();
       fetchPrograms();

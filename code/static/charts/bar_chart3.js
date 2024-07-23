@@ -15,6 +15,7 @@ async function barChart3() {
   document.getElementById("radarChart3").style.display = "none";
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
+  document.getElementById("loadingScreen").style.display = "none";
   var bC = document.getElementById("barChart3");
   bC.style.display = "block";
   barChart3Instance = echarts.init(bC);
