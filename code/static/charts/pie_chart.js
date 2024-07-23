@@ -10,6 +10,8 @@ async function pieChart() {
   document.getElementById("lineChart").style.display = "none";
   document.getElementById("lineChart2").style.display = "none";
   document.getElementById("radarChart").style.display = "none";
+  document.getElementById("radarChart2").style.display = "none";
+  document.getElementById("radarChart3").style.display = "none";
   document.getElementById("barPieChart").style.display = "none";
   var pC = document.getElementById("pieChart");
   pC.style.display = "block";

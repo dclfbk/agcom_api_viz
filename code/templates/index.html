@@ -63,6 +63,8 @@
   <button id='lineChartButton' onclick="lineChart()">Line Chart</button>
   <button id='lineChart2Button' onclick="lineChart2()">Line Chart 2</button>
   <button id='radarChartButton' onclick="radarChart()">Radar Chart</button>
+  <button id='radarChart2Button' onclick="radarChart2()">Radar Chart 2</button>
+  <button id='radarChart3Button' onclick="radarChart3()">Radar Chart 3</button>
   <button id='barPieChartButton' onclick="barPieChart()">Bar Pie Chart</button>
   <button id='tableButton'> Table </button>
 
@@ -73,6 +75,8 @@
   <div id="lineChart" style="width: 1000px; height:600px; display: none;"></div>
   <div id="lineChart2" style="width: 1000px; height:600px; display: none;"></div>
   <div id="radarChart" style="width: 1000px; height:600px; display: none;"></div>
+  <div id="radarChart2" style="width: 1000px; height:600px; display: none;"></div>
+  <div id="radarChart3" style="width: 1000px; height:600px; display: none;"></div>
   <div id="barPieChart" style="width: 1000px; height:600px; display: none;"></div>
 
 
@@ -92,38 +96,8 @@
 
   <script>
 
-    //function to call APIs passing url
-    async function fetchData(url) {
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        return data;
-      } catch (error) {
-        console.error('Errore nel recupero dei dati:', error);
-      }
-    }
-
-
-    //transform a numer in a {hour: h, minutes: m} data type
-    function calcTime(x){
-      var hours = Math.floor(x/60);
-      var minutes = x%60;
-      var str = '';
-      if(hours == 0){
-        str += minutes + " minuti";
-      }else if(hours == 1){
-        str += hours + " ora e " + minutes + " minuti";
-      }else{
-        str += hours + " ore e " + minutes + " minuti";
-      }
-      return str;
-    }
-
-
     $(document).ready(function() {
+
       $('#select_pol').select2({
         placeholder: 'Cerca politico',
         allowClear: true,
@@ -187,6 +161,16 @@
           maximumSelectionLength: 4
         });
       })
+      $('#radarChart2Button').click(function() {
+        $('#select_pol').select2({
+          maximumSelectionLength: 10
+        });
+      })
+      $('#radarChart3Button').click(function() {
+        $('#select_pol').select2({
+          maximumSelectionLength: 10
+        });
+      })
       $('#barPieChartButton').click(function() {
         $('#select_pol').select2({
           maximumSelectionLength: 4
@@ -197,95 +181,75 @@
       $('#tableButton').click(function() {
         table(tab, still_running);
       });
+
       fetchChannels();
       fetchPrograms();
       fetchTopics();
       fetchAffiliations();
+
+      fetchData("/v1/dates").then(result => {
+        start_date.value = result["first_date"];
+        start_date.min = result["first_date"];
+        start_date.max = result["end_date"];
+        end_date.value = result["end_date"];
+        end_date.min = result["first_date"];
+        end_date.max = result["end_date"];
+      });
+
     });
 
-
-    //update charts
-    async function updateCharts(){
-      if (document.getElementById('barChart2').style.display == "block"){
-        barChart2();
-      }else if(document.getElementById('barChart3').style.display == "block"){
-        barChart3();
-      }else if(document.getElementById('calendarChart').style.display == "block"){
-        calendarChart();
-      }else if(document.getElementById('lineChart').style.display == "block"){
-        lineChart();
-      }else if(document.getElementById('lineChart2').style.display == "block"){
-        lineChart2();
-      }else if(document.getElementById('radarChart').style.display == "block"){
-        radarChart();
-      }else if(document.getElementById('barPieChart').style.display == "block"){
-        barPieChart();
-      }else if(document.getElementById('tableDiv').style.display == "block"){
-        table();
-      }
+    const TOPICS = [];
+    //function to call APIs passing url
+async function fetchData(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Network response was not ok");
     }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Errore nel recupero dei dati:", error);
+  }
+}
+
+// fetch topics
+async function fetchTopics() {
+  var topics = [];
+  i = 1;
+  while (true) {
+    const data = await fetchData(`/v1/topics?page=${i}`);
+    i++;
+    if (data.topics.length === 0) {
+      break;
+    }
+    data["topics"].forEach((val) => {
+      topics.push(val);
+    });
+  }
+  return topics;
+}
+(async () => {
+  const fetchedTopics = await fetchTopics();
+  TOPICS.push(...fetchedTopics); 
+})();
 
 
-    // initialize dates
+
     const start_date = document.getElementById("start_date");
     const end_date = document.getElementById("end_date");
-    var TOPICS = [];
-    async function fetchTopics(){
-      i = 1;
-      while(true){
-        const data = await fetchData(`/v1/topics?page=${i}`)
-        i++;
-        if(data.topics.length === 0){
-          break;
-        }
-        data["topics"].forEach((val) => {
-          TOPICS.push(val)
-        });
-      }
-    }
-    fetchTopics();
-    fetchData("/v1/dates").then(result => {
-      start_date.value = result["first_date"];
-      start_date.min = result["first_date"];
-      start_date.max = result["end_date"];
-      end_date.value = result["end_date"];
-      end_date.min = result["first_date"];
-      end_date.max = result["end_date"];
-    });
-    async function limitEndDate(){
-      end_date.min = start_date.value;
-      if(Number(end_date.value.split('-')[0]) < Number(start_date.value.split('-')[0]) ||
-        (Number(end_date.value.split('-')[0]) == Number(start_date.value.split('-')[0]) &&
-        Number(end_date.value.split('-')[1]) < Number(start_date.value.split('-')[1])) ||
-        (Number(end_date.value.split('-')[1]) == Number(start_date.value.split('-')[1]) &&
-        Number(end_date.value.split('-')[2]) < Number(start_date.value.split('-')[2]))){
-        end_date.value = start_date.value;  
-      }
-    }
 
-
-    // change checkbox type
     var cb = "both";
-    async function changeType(){
-      const news = document.getElementById("news");
-      const speech = document.getElementById("speech");
-      if (news.checked == true && speech.checked == true){
-        cb = "both";
-      }else if (news.checked == true){
-        cb = "news";
-      }else if (speech.checked == true){
-        cb = "speech";
-      }else{
-        cb = "none";
-      }
-    }
 
     var radarChartInstance = null;
+    var radarChart2Instance = null;
+    var radarChart3Instance = null;
     var lineChart2Instance = null;
     var barChart2Instance = null;
     var barChart3Instance = null;
     var barPieChartInstance = null;
     var calendarChartInstance = null;
+
 
   </script>
 
@@ -296,8 +260,16 @@
   <script src="/static/charts/line_chart.js"></script>
   <script src="/static/charts/line_chart2.js"></script>
   <script src="/static/charts/radar_chart.js"></script>
+  <script src="/static/charts/radar_chart2.js"></script>
+  <script src="/static/charts/radar_chart3.js"></script>
   <script src="/static/charts/table.js"></script>
+  <script src="/static/functions/calcTime.js"></script>
+  <script src="/static/functions/changeType.js"></script>
+  <script src="/static/functions/fetchData.js"></script>
+  <script src="/static/functions/limitEndDate.js"></script>
   <script src="/static/functions/selects.js"></script>
+  <script src="/static/functions/updateCharts.js"></script>
+
 
 </body>
 

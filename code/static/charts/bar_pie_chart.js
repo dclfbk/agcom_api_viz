@@ -35,6 +35,8 @@ async function barPieChart() {
   document.getElementById("lineChart").style.display = "none";
   document.getElementById("lineChart2").style.display = "none";
   document.getElementById("radarChart").style.display = "none";
+  document.getElementById("radarChart2").style.display = "none";
+  document.getElementById("radarChart3").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
   var bpC = document.getElementById("barPieChart");
   bpC.style.display = "block";

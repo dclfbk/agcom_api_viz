@@ -11,6 +11,8 @@ async function radarChart() {
   document.getElementById("calendarChart").style.display = "none";
   document.getElementById("lineChart").style.display = "none";
   document.getElementById("lineChart2").style.display = "none";
+  document.getElementById("radarChart2").style.display = "none";
+  document.getElementById("radarChart3").style.display = "none";
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
   var rC = document.getElementById("radarChart");

@@ -8,6 +8,8 @@ async function lineChart() {
   document.getElementById("lineChart2").style.display = "none";
   document.getElementById("calendarChart").style.display = "none";
   document.getElementById("radarChart").style.display = "none";
+  document.getElementById("radarChart2").style.display = "none";
+  document.getElementById("radarChart3").style.display = "none";
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
   var lC = document.getElementById("lineChart");

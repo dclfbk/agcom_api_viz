@@ -126,7 +126,7 @@ async function fetchAffiliations() {
   select_affiliations.appendChild(o);
   if ($("#select_pol").val().length > 1) {
     document.getElementById("select_affiliations").disabled = true;
-  } else {
+  } else if (!$("#political_group").is(":checked")) {
     document.getElementById("select_affiliations").disabled = false;
     while (select_affiliations.options.length > 0) {
       select_affiliations.remove(0);
