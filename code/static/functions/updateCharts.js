@@ -20,7 +20,10 @@ async function updateCharts() {
     radarChart3();
   } else if (document.getElementById("barPieChart").style.display == "block") {
     barPieChart();
-  } else if (document.getElementById("tableDiv").style.display == "block") {
+  } else if (
+    document.getElementById("tableDiv").style.display == "block" ||
+    document.getElementById("loadingScreen").style.display == "block"
+  ) {
     table();
   }
 }

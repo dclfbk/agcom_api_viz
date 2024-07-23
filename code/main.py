@@ -1091,6 +1091,7 @@ async def get_minutes_channel_per_politician(
     if topic_ != "all":
         if topic_ not in topics:
             raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
 
     all_programs_channel = filter_data(filtered_data, start_date_, end_date_, kind_)
     programs_channel = all_programs_channel.select('program').unique().to_series().to_list()
@@ -1155,6 +1156,7 @@ async def get_minutes_channel_per_political_group(
     if topic_ != "all":
         if topic_ not in topics:
             raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
 
     all_programs_channel = filter_data(filtered_data, start_date_, end_date_, kind_)
     programs_channel = all_programs_channel.select('program').unique().to_series().to_list()
@@ -1236,6 +1238,7 @@ async def get_channels_programs_topics_politician(
     if topic_ != "all":
         if topic_ not in topics:
             raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
 
     all_channels = filter_data(filtered_data, start_date_, end_date_, kind_)
     channels_p = all_channels.select('channel').unique().to_series().to_list()
@@ -1325,6 +1328,7 @@ async def get_channels_programs_topics_political_group(
     if topic_ != "all":
         if topic_ not in topics:
             raise HTTPException(status_code=400, detail="Invalid topic")
+        filtered_data = filtered_data.filter(pl.col('topic') == topic_)
 
     all_channels = filter_data(filtered_data, start_date_, end_date_, kind_)
     channels_p = all_channels.select('channel').unique().to_series().to_list()

@@ -26,6 +26,7 @@ async function handleOptionChange(radio) {
     }
   } else if (radio.value == "political_group") {
     document.getElementById("select_affiliations").disabled = true;
+    $("#select_affiliations").empty();
     var i = 1;
     while (true) {
       var url = "/v1/political-groups" + `?page=${i}`;
@@ -126,6 +127,7 @@ async function fetchAffiliations() {
   select_affiliations.appendChild(o);
   if ($("#select_pol").val().length > 1) {
     document.getElementById("select_affiliations").disabled = true;
+    $("#select_affiliations").empty();
   } else if (!$("#political_group").is(":checked")) {
     document.getElementById("select_affiliations").disabled = false;
     while (select_affiliations.options.length > 0) {
