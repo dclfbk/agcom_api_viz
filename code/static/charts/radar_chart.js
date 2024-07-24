@@ -61,7 +61,8 @@ async function radarChart() {
   }
   const selectedValues = $("#select_pol").val();
   for (const value of selectedValues) {
-    const url =
+    var i = 1;
+    const baseUrl =
       t +
       value +
       "?start_date_=" +
@@ -74,17 +75,22 @@ async function radarChart() {
       url_c +
       url_p +
       url_t;
-    const data = await fetchData(url);
-    if (p.checked == true) {
-      politicians.push(data["politician"]);
-    } else if (pg.checked == true) {
-      politicians.push(data["political group"]);
+    var temp_values = [];
+    while (true) {
+      var url = `${baseUrl}&page=${i}`;
+      i++;
+      const data = await fetchData(url);
+      if (data.topics.length == 0) {
+        break;
+      } else {
+        temp_values.push(data["topics"][0]);
+      }
     }
-    values.push(data["topics"]);
+    values.push(temp_values);
+    politicians.push(value);
   }
   var minutes = [];
   var topics = [];
-  var max_value = [];
   values.forEach(function (value) {
     var temp = [];
     value.forEach(function (v) {

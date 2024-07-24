@@ -84,9 +84,9 @@ async function radarChart3() {
       }
     }
   } else {
-    const url =
+    const baseUrl =
       t +
-      selected_program +
+      selected_channel +
       "?start_date_=" +
       start_date.value.replace(/-/g, "%2F") +
       "&end_date_=" +
@@ -94,13 +94,20 @@ async function radarChart3() {
       "&kind_=" +
       cb +
       url_a +
-      url_c +
+      url_p +
       url_t;
-    const data = await fetchData(url);
-    data.pol.forEach((p) => {
-      names.push(p.name);
-      values.push(p.minutes);
-    });
+    var i = 1;
+    while (true) {
+      var url = `${baseUrl}&page=${i}`;
+      i++;
+      const data = await fetchData(url);
+      if (data.pol.length == 0) {
+        break;
+      } else {
+        names.push(data["pol"][0].name);
+        values.push(data["pol"][0].minutes);
+      }
+    }
   }
 
   const maxMinutes = Math.max(...values);

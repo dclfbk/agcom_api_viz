@@ -29,7 +29,7 @@ async function barChart2() {
   } else {
     return 0;
   }
-  var values = [];
+  var final_values = [];
   var politicians = [];
   var url_c = "";
   var url_p = "";
@@ -61,7 +61,9 @@ async function barChart2() {
   }
   const selectedValues = $("#select_pol").val();
   for (const value of selectedValues) {
-    const url =
+    var i = 1;
+    var values = [];
+    const baseUrl =
       t +
       value +
       "?start_date_=" +
@@ -74,16 +76,23 @@ async function barChart2() {
       url_c +
       url_p +
       url_t;
-    const data = await fetchData(url);
-    if (p.checked == true) {
-      politicians.push(data["politician"]);
-    } else if (pg.checked == true) {
-      politicians.push(data["political group"]);
+
+    while (true) {
+      var url = `${baseUrl}&page=${i}`;
+      i++;
+      const data = await fetchData(url);
+      if (data.topics.length == 0) {
+        break;
+      } else {
+        values.push(data["topics"][0]);
+      }
     }
-    values.push(data["topics"]);
+    politicians.push(value);
+    final_values.push(values);
   }
+  console.log(final_values, politicians);
   var topics = [];
-  values.forEach((v) => {
+  final_values.forEach((v) => {
     var t = [];
     v.forEach((x) => {
       t.push(x["topic"]);
@@ -91,7 +100,7 @@ async function barChart2() {
     topics = t;
   });
   var series = [];
-  values.forEach((v, index) => {
+  final_values.forEach((v, index) => {
     var m = [];
     v.forEach((x) => {
       m.push(x["minutes"]);

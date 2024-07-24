@@ -21,9 +21,9 @@
   <div class="searchPol">
     <form id="form_pol">
       <input type="radio" id="politician" value="politician" name="choose_pol" onclick="handleOptionChange(this)">
-      <label for="politician">Politician</label><br>
+      <label for="politician">Politicians</label><br>
       <input type="radio" id="political_group" value="political_group" name="choose_pol" onclick="handleOptionChange(this)">
-      <label for="political_group">Political Group</label>
+      <label for="political_group">Political Groups</label>
     </form>
     <select id="select_pol" style="width: 100%;" multiple="multiple" onchange="updateCharts(), fetchAffiliations()">
       <option></option>
@@ -179,14 +179,18 @@
           maximumSelectionLength: 4
         });
       })
-      $(document).ready(function() {
-        var tab = $("#table").DataTable();
-        var still_running = true;
-        $('#tableButton').click(function() {
-          table(tab, still_running);
+      $('#tableButton').click(function() {
+        table(tab, still_running);
+        $('#select_pol').select2({
+          maximumSelectionLength: 1
         });
+        if($('#select_pol').val().length > 1){
+          temp = $('#select_pol').val()[0];
+          $('#select_pol').val([temp]).trigger('change');
+        }
       });
-
+      var tab = $("#table").DataTable();
+      var still_running = true;
 
       fetchChannels();
       fetchPrograms();

@@ -61,7 +61,7 @@ async function lineChart2() {
   }
   const selectedValues = $("#select_pol").val();
   for (const value of selectedValues) {
-    const url =
+    const baseUrl =
       t +
       value +
       "?start_date_=" +
@@ -74,14 +74,20 @@ async function lineChart2() {
       url_c +
       url_p +
       url_t;
-    const data = await fetchData(url);
-    var interventions = data["interventions"];
-    series.push(interventions);
-    if (p.checked == true) {
-      politicians.push(data["politician"]);
-    } else if (pg.checked == true) {
-      politicians.push(data["political group"]);
+    var values = [];
+    var i = 1;
+    while (true) {
+      var url = `${baseUrl}&page=${i}`;
+      i++;
+      const data = await fetchData(url);
+      if (data.interventions.length == 0) {
+        break;
+      } else {
+        values.push(data["interventions"][0]);
+      }
     }
+    series.push(values);
+    politicians.push(value);
   }
   series.forEach((pol, index) => {
     var f = [];

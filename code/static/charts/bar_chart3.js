@@ -59,7 +59,7 @@ async function barChart3() {
   ) {
     url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
   }
-  const url =
+  const baseUrl =
     t +
     $("#select_pol").val()[0] +
     "?start_date_=" +
@@ -72,7 +72,21 @@ async function barChart3() {
     url_c +
     url_p +
     url_t;
-  const data = await fetchData(url);
+  var data = {
+    politician: $("#select_pol").val()[0],
+    channels: [],
+  };
+  var i = 1;
+  while (true) {
+    var url = `${baseUrl}&page=${i}`;
+    i++;
+    const i_data = await fetchData(url);
+    if (i_data.channels.length == 0) {
+      break;
+    } else {
+      data.channels.push(i_data["channels"][0]);
+    }
+  }
   var final = [];
   for (let i = 0; i < data["channels"].length; i++) {
     var j = {};
