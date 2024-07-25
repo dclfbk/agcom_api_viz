@@ -1,21 +1,6 @@
 async function barChart2() {
-  if (barChart2Instance !== null) {
-    barChart2Instance.dispose();
-  }
-  $("#select_pol").select2({
-    maximumSelectionLength: 4,
-    placeholder: "Cerca politico/partito",
-  });
-  document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Bar Chart</span>";
-  if (
-    $("#select_pol").val()[0] == undefined ||
-    $("#select_pol").val()[0] == ""
-  ) {
-    document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Bar Chart 2<br><br> You need to select at least a politician/political group to use this chart</span>";
-    return 0;
-  }
+  var bC = document.getElementById("barChart2");
+  bC.style.display = "block";
   document.getElementById("barChart3").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
   document.getElementById("calendarChart").style.display = "none";
@@ -27,8 +12,19 @@ async function barChart2() {
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
   document.getElementById("loadingScreen").style.display = "none";
-  var bC = document.getElementById("barChart2");
-  bC.style.display = "block";
+  if (barChart2Instance !== null) {
+    barChart2Instance.dispose();
+  }
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Bar Chart</span>";
+  if (
+    $("#select_pol").val()[0] == undefined ||
+    $("#select_pol").val()[0] == ""
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Bar Chart 2<br><br> You need to select at least a politician/political group to use this chart</span>";
+    return 0;
+  }
   barChart2Instance = echarts.init(bC);
   barChart2Instance.showLoading();
   const p = document.getElementById("politician");
@@ -101,7 +97,6 @@ async function barChart2() {
     politicians.push(value);
     final_values.push(values);
   }
-  console.log(final_values, politicians);
   var topics = [];
   final_values.forEach((v) => {
     var t = [];

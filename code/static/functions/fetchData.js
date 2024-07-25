@@ -1,4 +1,3 @@
-//function to call APIs passing url
 async function fetchData(url) {
   try {
     const response = await fetch(url);

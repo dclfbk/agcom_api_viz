@@ -1,24 +1,6 @@
 async function calendarChart() {
-  if (calendarChartInstance !== null) {
-    calendarChartInstance.dispose();
-  }
-  $("#select_pol").select2({
-    maximumSelectionLength: 1,
-  });
-  document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Calendar Chart</span>";
-  if ($("#select_pol").val().length > 1) {
-    temp = $("#select_pol").val()[0];
-    $("#select_pol").val([temp]).trigger("change");
-  }
-  if (
-    $("#select_pol").val()[0] == undefined ||
-    $("#select_pol").val()[0] == ""
-  ) {
-    document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Calendar Chart <br><br> You need to select at least a politician/political group to use this chart</span>";
-    return 0;
-  }
+  var cC = document.getElementById("calendarChart");
+  cC.style.display = "block";
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("barChart3").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
@@ -30,8 +12,19 @@ async function calendarChart() {
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
   document.getElementById("loadingScreen").style.display = "none";
-  var cC = document.getElementById("calendarChart");
-  cC.style.display = "block";
+  if (calendarChartInstance !== null) {
+    calendarChartInstance.dispose();
+  }
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Calendar Chart</span>";
+  if (
+    $("#select_pol").val()[0] == undefined ||
+    $("#select_pol").val()[0] == ""
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Calendar Chart <br><br> You need to select at least a politician/political group to use this chart</span>";
+    return 0;
+  }
   calendarChartInstance = echarts.init(cC);
   calendarChartInstance.showLoading();
   const p = document.getElementById("politician");

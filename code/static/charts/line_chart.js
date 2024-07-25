@@ -1,17 +1,6 @@
 async function lineChart() {
-  $("#select_pol").select2({
-    maximumSelectionLength: 4,
-  });
-  document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Line Chart</span>";
-  if (
-    $("#select_pol").val()[0] == undefined ||
-    $("#select_pol").val()[0] == ""
-  ) {
-    document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Line Chart <br><br> You need to select at least a politician/political group to use this chart</span>";
-    return 0;
-  }
+  var lC = document.getElementById("lineChart");
+  lC.style.display = "block";
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("barChart3").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
@@ -23,8 +12,16 @@ async function lineChart() {
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
   document.getElementById("loadingScreen").style.display = "none";
-  var lC = document.getElementById("lineChart");
-  lC.style.display = "block";
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Line Chart</span>";
+  if (
+    $("#select_pol").val()[0] == undefined ||
+    $("#select_pol").val()[0] == ""
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Line Chart <br><br> You need to select at least a politician/political group to use this chart</span>";
+    return 0;
+  }
   var lineChart = echarts.init(lC);
   lineChart.showLoading();
   const p = document.getElementById("politician");

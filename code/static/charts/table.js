@@ -1,14 +1,19 @@
 async function table(tab, still_running) {
   document.getElementById("tableDiv").style.display = "none";
   document.getElementById("loadingScreen").style.display = "block";
+  document.getElementById("barChart2").style.display = "none";
+  document.getElementById("barChart3").style.display = "none";
+  document.getElementById("stackedBarChart").style.display = "none";
+  document.getElementById("calendarChart").style.display = "none";
+  document.getElementById("lineChart").style.display = "none";
+  document.getElementById("lineChart2").style.display = "none";
+  document.getElementById("radarChart").style.display = "none";
+  document.getElementById("radarChart2").style.display = "none";
+  document.getElementById("radarChart3").style.display = "none";
+  document.getElementById("barPieChart").style.display = "none";
 
-  tab.clear();
-  $("#select_pol").select2({
-    maximumSelectionLength: 1,
-  });
-  if ($("#select_pol").val().length > 1) {
-    temp = $("#select_pol").val()[0];
-    $("#select_pol").val([temp]).trigger("change");
+  if (tab != undefined) {
+    tab.clear();
   }
   document.querySelector(".card-title").innerHTML =
     "Charts <span>/Table</span>";
@@ -20,18 +25,9 @@ async function table(tab, still_running) {
       "Charts <span>/Table <br><br> You need to select at least a politician/political group to use this chart</span>";
     still_running = false;
     document.getElementById("loadingScreen").style.display = "none";
+    document.getElementById("tableDiv").style.display = "block";
     return 0;
   }
-  document.getElementById("barChart2").style.display = "none";
-  document.getElementById("barChart3").style.display = "none";
-  document.getElementById("stackedBarChart").style.display = "none";
-  document.getElementById("calendarChart").style.display = "none";
-  document.getElementById("lineChart").style.display = "none";
-  document.getElementById("lineChart2").style.display = "none";
-  document.getElementById("radarChart").style.display = "none";
-  document.getElementById("radarChart2").style.display = "none";
-  document.getElementById("radarChart3").style.display = "none";
-  document.getElementById("barPieChart").style.display = "none";
   const p = document.getElementById("politician");
   const pg = document.getElementById("political_group");
   if (p.checked == true) {
@@ -93,6 +89,9 @@ async function table(tab, still_running) {
       var programPageUrl = `${pageUrl}&program_page=${j}`;
       j++;
       data = await fetchData(programPageUrl);
+      if (data.channels.length === 0) {
+        break;
+      }
       if (data.channels[0].programs.length === 0) {
         break;
       }

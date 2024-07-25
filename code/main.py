@@ -1303,30 +1303,33 @@ async def get_channels_programs_topics_politician(
     channels_p.sort()
 
     final_channels = []
+    total_program_count = 0
 
-    for channel in channels_p:
-        single_channel = all_channels.filter(pl.col('channel') == channel)
-        programs_in_channel = single_channel.select('program').unique().to_series().to_list()
-        programs_in_channel.sort()
-        final_programs = []
+    if len(channels_p) != 0:
+        for channel in channels_p:
+            single_channel = all_channels.filter(pl.col('channel') == channel)
+            programs_in_channel = single_channel.select('program').unique().to_series().to_list()
+            programs_in_channel.sort()
+            total_program_count += len(programs_in_channel)
+            final_programs = []
 
-        # Paginazione dei programmi
-        start_program_index = (program_page - 1) * program_page_size
-        end_program_index = start_program_index + program_page_size
-        paginated_programs = programs_in_channel[start_program_index:end_program_index]
+            # Paginazione dei programmi
+            start_program_index = (program_page - 1) * program_page_size
+            end_program_index = start_program_index + program_page_size
+            paginated_programs = programs_in_channel[start_program_index:end_program_index]
 
-        for program in paginated_programs:
-            single_program = single_channel.filter(pl.col('program') == program)
-            topics_in_program = single_program.select('topic').unique().to_series().to_list()
-            topics_in_program.sort()
-            final_topics = []
-            for topic in topics_in_program:
-                single_topic = single_program.filter(pl.col('topic') == topic)
-                minutes = single_topic.select('duration').sum().to_series().to_list()[0]
-                final_topics.append({"topic": topic, "minutes": minutes})
-            final_programs.append({"program": program, "topics": final_topics})
+            for program in paginated_programs:
+                single_program = single_channel.filter(pl.col('program') == program)
+                topics_in_program = single_program.select('topic').unique().to_series().to_list()
+                topics_in_program.sort()
+                final_topics = []
+                for topic in topics_in_program:
+                    single_topic = single_program.filter(pl.col('topic') == topic)
+                    minutes = single_topic.select('duration').sum().to_series().to_list()[0]
+                    final_topics.append({"topic": topic, "minutes": minutes})
+                final_programs.append({"program": program, "topics": final_topics})
 
-        final_channels.append({"channel": channel, "programs": final_programs})
+            final_channels.append({"channel": channel, "programs": final_programs})
 
     # Paginazione dei canali
     start_index = (page - 1) * page_size
@@ -1341,7 +1344,7 @@ async def get_channels_programs_topics_politician(
         "total_pages": (len(final_channels) + page_size - 1) // page_size,
         "program_page": program_page,
         "program_page_size": program_page_size,
-        "total_program_pages": (len(programs_in_channel) + program_page_size - 1)//program_page_size
+        "total_program_pages": (total_program_count + program_page_size - 1) // program_page_size
     }
 
 
@@ -1360,8 +1363,8 @@ async def get_channels_programs_topics_political_group(
     program_page_size: int = Query(default=1, description="Program page size")
 ):
     """
-    Return for a political group, all the channels he spoke to, in which programs, 
-    what topic it was about, duration and date
+    Return for a political group, all the channels they spoke to, in which programs, 
+    what topics were discussed, duration, and date.
     """
 
     if page < 1 or page_size < 1 or program_page < 1 or program_page_size < 1:
@@ -1393,11 +1396,13 @@ async def get_channels_programs_topics_political_group(
     channels_p.sort()
 
     final_channels = []
+    total_program_count = 0
 
     for channel in channels_p:
         single_channel = all_channels.filter(pl.col('channel') == channel)
         programs_in_channel = single_channel.select('program').unique().to_series().to_list()
         programs_in_channel.sort()
+        total_program_count += len(programs_in_channel)
         final_programs = []
 
         # Paginazione dei programmi
@@ -1424,15 +1429,16 @@ async def get_channels_programs_topics_political_group(
     paginated_channels = final_channels[start_index:end_index]
 
     return {
-        "political group": name,
+        "political_group": name,
         "channels": paginated_channels,
         "page": page,
         "page_size": page_size,
         "total_pages": (len(final_channels) + page_size - 1) // page_size,
         "program_page": program_page,
         "program_page_size": program_page_size,
-        "total_program_pages": (len(programs_in_channel) + program_page_size - 1)//program_page_size
+        "total_program_pages": (total_program_count + program_page_size - 1) // program_page_size
     }
+
 
 # -------------------------------------------------------
 

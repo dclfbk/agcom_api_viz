@@ -18,12 +18,22 @@ async function barPieChart() {
     }
     return obj;
   }
+  var bpC = document.getElementById("barPieChart");
+  bpC.style.display = "block";
+  document.getElementById("barChart2").style.display = "none";
+  document.getElementById("barChart3").style.display = "none";
+  document.getElementById("stackedBarChart").style.display = "none";
+  document.getElementById("calendarChart").style.display = "none";
+  document.getElementById("lineChart").style.display = "none";
+  document.getElementById("lineChart2").style.display = "none";
+  document.getElementById("radarChart").style.display = "none";
+  document.getElementById("radarChart2").style.display = "none";
+  document.getElementById("radarChart3").style.display = "none";
+  document.getElementById("tableDiv").style.display = "none";
+  document.getElementById("loadingScreen").style.display = "none";
   if (barPieChartInstance !== null) {
     barPieChartInstance.dispose();
   }
-  $("#select_pol").select2({
-    maximumSelectionLength: 4,
-  });
   document.querySelector(".card-title").innerHTML =
     "Charts <span>/Bar + Pie Chart</span>";
   if (
@@ -36,19 +46,6 @@ async function barPieChart() {
       "Charts <span>/Bar + Pie Chart <br><br> You need to select at least a politician/political group and a channel to use this chart</span>";
     return 0;
   }
-  document.getElementById("barChart2").style.display = "none";
-  document.getElementById("barChart3").style.display = "none";
-  document.getElementById("stackedBarChart").style.display = "none";
-  document.getElementById("calendarChart").style.display = "none";
-  document.getElementById("lineChart").style.display = "none";
-  document.getElementById("lineChart2").style.display = "none";
-  document.getElementById("radarChart").style.display = "none";
-  document.getElementById("radarChart2").style.display = "none";
-  document.getElementById("radarChart3").style.display = "none";
-  document.getElementById("tableDiv").style.display = "none";
-  document.getElementById("loadingScreen").style.display = "none";
-  var bpC = document.getElementById("barPieChart");
-  bpC.style.display = "block";
   barPieChartInstance = echarts.init(bpC);
   barPieChartInstance.showLoading();
   const p = document.getElementById("politician");

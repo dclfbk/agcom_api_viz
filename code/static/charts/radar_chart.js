@@ -1,20 +1,5 @@
 async function radarChart() {
-  if (radarChartInstance !== null) {
-    radarChartInstance.dispose();
-  }
-  $("#select_pol").select2({
-    maximumSelectionLength: 4,
-  });
-  document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Radar Chart</span>";
-  if (
-    $("#select_pol").val()[0] == undefined ||
-    $("#select_pol").val()[0] == ""
-  ) {
-    document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Radar Chart <br><br> You need to select at least a politician/political group to use this chart</span>";
-    return 0;
-  }
+  var rC = document.getElementById("radarChart");
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("barChart3").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
@@ -26,8 +11,20 @@ async function radarChart() {
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
   document.getElementById("loadingScreen").style.display = "none";
-  var rC = document.getElementById("radarChart");
   rC.style.display = "block";
+  if (radarChartInstance !== null) {
+    radarChartInstance.dispose();
+  }
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Radar Chart</span>";
+  if (
+    $("#select_pol").val()[0] == undefined ||
+    $("#select_pol").val()[0] == ""
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Radar Chart <br><br> You need to select at least a politician/political group to use this chart</span>";
+    return 0;
+  }
   radarChartInstance = echarts.init(rC);
   radarChartInstance.showLoading();
   const p = document.getElementById("politician");

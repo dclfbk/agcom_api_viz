@@ -1,25 +1,6 @@
 async function barChart3() {
-  if (barChart3Instance !== null) {
-    barChart3Instance.dispose();
-  }
-  $("#select_pol").select2({
-    maximumSelectionLength: 1,
-    placeholder: "Cerca politico/partito",
-  });
-  if ($("#select_pol").val().length > 1) {
-    temp = $("#select_pol").val()[0];
-    $("#select_pol").val([temp]).trigger("change");
-  }
-  document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Bar Chart 2</span>";
-  if (
-    $("#select_pol").val()[0] == undefined ||
-    $("#select_pol").val()[0] == ""
-  ) {
-    document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Bar Chart 3<br><br> You need to select at least a politician/political group to use this chart</span>";
-    return 0;
-  }
+  var bC = document.getElementById("barChart3");
+  bC.style.display = "block";
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
   document.getElementById("calendarChart").style.display = "none";
@@ -31,8 +12,19 @@ async function barChart3() {
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
   document.getElementById("loadingScreen").style.display = "none";
-  var bC = document.getElementById("barChart3");
-  bC.style.display = "block";
+  if (barChart3Instance !== null) {
+    barChart3Instance.dispose();
+  }
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Bar Chart 2</span>";
+  if (
+    $("#select_pol").val()[0] == undefined ||
+    $("#select_pol").val()[0] == ""
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Bar Chart 3<br><br> You need to select at least a politician/political group to use this chart</span>";
+    return 0;
+  }
   barChart3Instance = echarts.init(bC);
   barChart3Instance.showLoading();
   const p = document.getElementById("politician");
@@ -306,7 +298,6 @@ async function barChart3() {
           type: "shadow",
         },
         formatter: function (params) {
-          console.log(params, params[0]);
           var result = "";
           if (p.name == "altro") {
             result +=

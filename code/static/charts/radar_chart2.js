@@ -1,23 +1,6 @@
 async function radarChart2() {
-  const p = document.getElementById("politician");
-  const pg = document.getElementById("political_group");
-  if (radarChart2Instance !== null) {
-    radarChart2Instance.dispose();
-  }
-  $("#select_pol").select2({
-    maximumSelectionLength: 10,
-  });
-  document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Radar Chart 2</span>";
-  if (
-    $("#select_channels").val()[0] == undefined ||
-    $("#select_channels").val()[0] == "" ||
-    (p.checked == false && pg.checked == false)
-  ) {
-    document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Radar Chart 2<br><br> You need to select at least a channel and choose between politicians and political groups to use this chart</span>";
-    return 0;
-  }
+  var rC = document.getElementById("radarChart2");
+  rC.style.display = "block";
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("barChart3").style.display = "none";
   document.getElementById("stackedBarChart").style.display = "none";
@@ -29,9 +12,22 @@ async function radarChart2() {
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
   document.getElementById("loadingScreen").style.display = "none";
-
-  var rC = document.getElementById("radarChart2");
-  rC.style.display = "block";
+  const p = document.getElementById("politician");
+  const pg = document.getElementById("political_group");
+  if (radarChart2Instance !== null) {
+    radarChart2Instance.dispose();
+  }
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Radar Chart 2</span>";
+  if (
+    $("#select_channels").val()[0] == undefined ||
+    $("#select_channels").val()[0] == "" ||
+    (p.checked == false && pg.checked == false)
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Radar Chart 2<br><br> You need to select at least a channel and choose between politicians and political groups to use this chart</span>";
+    return 0;
+  }
   radarChart2Instance = echarts.init(rC);
   radarChart2Instance.showLoading();
   if (p.checked == true) {

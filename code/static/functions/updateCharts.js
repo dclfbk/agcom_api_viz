@@ -1,5 +1,5 @@
 //update charts
-async function updateCharts() {
+async function updateCharts(tab, still_running) {
   if (document.getElementById("barChart2").style.display == "block") {
     barChart2();
   } else if (document.getElementById("barChart3").style.display == "block") {
@@ -24,8 +24,40 @@ async function updateCharts() {
     document.getElementById("tableDiv").style.display == "block" ||
     document.getElementById("loadingScreen").style.display == "block"
   ) {
-    table();
-  } else {
-    console.log("hello");
+    table(tab, still_running);
   }
+}
+
+async function selectPolLength1() {
+  $("#select_pol").select2({
+    maximumSelectionLength: 1,
+    placeholder: "Cerca politico/partito",
+  });
+  if ($("#select_pol").val().length > 1) {
+    temp = $("#select_pol").val()[0];
+    $("#select_pol").val([temp]).trigger("change");
+  }
+}
+
+async function selectPolLength4() {
+  $("#select_pol").select2({
+    maximumSelectionLength: 4,
+    placeholder: "Cerca politico/partito",
+  });
+  if ($("#select_pol").val().length > 4) {
+    temp = [
+      $("#select_pol").val()[0],
+      $("#select_pol").val()[1],
+      $("#select_pol").val()[2],
+      $("#select_pol").val()[3],
+    ];
+    $("#select_pol").val(temp).trigger("change");
+  }
+}
+
+async function selectPolLength10() {
+  $("#select_pol").select2({
+    maximumSelectionLength: 10,
+    placeholder: "Cerca politico/partito",
+  });
 }
