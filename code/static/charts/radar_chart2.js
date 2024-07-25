@@ -1,14 +1,22 @@
 async function radarChart2() {
   const p = document.getElementById("politician");
   const pg = document.getElementById("political_group");
-  if (
-    $("#select_channels").val().length == 0 ||
-    (p.checked == false && pg.checked == false)
-  ) {
-    return 0;
-  }
   if (radarChart2Instance !== null) {
     radarChart2Instance.dispose();
+  }
+  $("#select_pol").select2({
+    maximumSelectionLength: 10,
+  });
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Radar Chart 2</span>";
+  if (
+    $("#select_channels").val()[0] == undefined ||
+    $("#select_channels").val()[0] == "" ||
+    (p.checked == false && pg.checked == false)
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Radar Chart 2<br><br> You need to select at least a channel and choose between politicians and political groups to use this chart</span>";
+    return 0;
   }
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("barChart3").style.display = "none";

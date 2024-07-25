@@ -2,7 +2,21 @@ async function calendarChart() {
   if (calendarChartInstance !== null) {
     calendarChartInstance.dispose();
   }
-  if ($("#select_pol").val().length == 0) {
+  $("#select_pol").select2({
+    maximumSelectionLength: 1,
+  });
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Calendar Chart</span>";
+  if ($("#select_pol").val().length > 1) {
+    temp = $("#select_pol").val()[0];
+    $("#select_pol").val([temp]).trigger("change");
+  }
+  if (
+    $("#select_pol").val()[0] == undefined ||
+    $("#select_pol").val()[0] == ""
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Calendar Chart <br><br> You need to select at least a politician/political group to use this chart</span>";
     return 0;
   }
   document.getElementById("barChart2").style.display = "none";

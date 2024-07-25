@@ -1,9 +1,19 @@
 async function lineChart2() {
-  if ($("#select_pol").val().length == 0) {
-    return 0;
-  }
   if (lineChart2Instance !== null) {
     lineChart2Instance.dispose();
+  }
+  $("#select_pol").select2({
+    maximumSelectionLength: 4,
+  });
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Line Chart 2</span>";
+  if (
+    $("#select_pol").val()[0] == undefined ||
+    $("#select_pol").val()[0] == ""
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Line Chart 2<br><br> You need to select at least a politician/political group to use this chart</span>";
+    return 0;
   }
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("barChart3").style.display = "none";

@@ -21,11 +21,19 @@ async function barPieChart() {
   if (barPieChartInstance !== null) {
     barPieChartInstance.dispose();
   }
+  $("#select_pol").select2({
+    maximumSelectionLength: 4,
+  });
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Bar + Pie Chart</span>";
   if (
-    $("#select_pol").val().length == 0 ||
+    $("#select_pol").val()[0] == undefined ||
+    $("#select_pol").val()[0] == "" ||
     $("#select_channels").val()[0] == undefined ||
     $("#select_channels").val()[0] == ""
   ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Bar + Pie Chart <br><br> You need to select at least a politician/political group and a channel to use this chart</span>";
     return 0;
   }
   document.getElementById("barChart2").style.display = "none";

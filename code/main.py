@@ -14,7 +14,6 @@ from fastapi import FastAPI, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 import polars as pl
-import json
 warnings.filterwarnings('ignore')
 
 
@@ -112,6 +111,27 @@ async def read_index():
     """
     return FileResponse('templates/index.html')
 
+@app.get("/charts")
+async def read_charts():
+    """
+    Serve the chartsy.html file.
+    """
+    return FileResponse('templates/charts.html')
+
+@app.get("/faq")
+async def read_faq():
+    """
+    Serve the pages-faq.html file.
+    """
+    return FileResponse('templates/pages-faq.html')
+
+@app.get("/contact")
+async def contact():
+    """
+    Serve the pages-contact.html file.
+    """
+    return FileResponse('templates/pages-contact.html')
+
 # -------------------------------------------------------
 
 @app.get("/v1/politicians")
@@ -127,7 +147,7 @@ async def get_politicians(
     """
     if page < 1 or page_size < 1:
         raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
-    
+
     politicians_ = filter_data(politicians, start_date_, end_date_, kind_)
     politicians_ = politicians_.select('fullname').unique().to_series().to_list()
     politicians_.sort()
@@ -323,7 +343,7 @@ async def get_politician_topics(
         final_list.append({"topic": t,
                            "minutes" : total[0],
                            "interventions" : interventions })
-        
+
     paginated_list = final_list[start:end]
 
     return { "politician": name, "topics": paginated_list }
@@ -377,7 +397,7 @@ async def get_political_group_topics(
         final_list.append({"topic": t,
                            "minutes" : total[0],
                            "interventions" : interventions })
-        
+
     paginated_list = final_list[start:end]
 
     return { "political group": name, "topics": paginated_list }
@@ -440,7 +460,7 @@ async def get_politician_channels(
         final_list.append({"channel": c,
                            "minutes" : total[0],
                            "interventions" : interventions })
-        
+
     paginated_list = final_list[start:end]
 
     return { "politician": name, "channels": paginated_list }
@@ -496,7 +516,7 @@ async def get_political_group_channels(
         final_list.append({"channel": c,
                            "minutes" : total[0],
                            "interventions" : interventions })
-        
+
     paginated_list = final_list[start:end]
 
     return { "political group": name, "channels": paginated_list }

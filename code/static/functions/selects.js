@@ -1,7 +1,6 @@
 // initializing politicians/political group list (select)
 async function handleOptionChange(radio) {
   const select_pol = document.getElementById("select_pol");
-  var options = [];
   while (select_pol.options.length > 0) {
     select_pol.remove(0);
   }

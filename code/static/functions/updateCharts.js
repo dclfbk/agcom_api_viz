@@ -25,5 +25,7 @@ async function updateCharts() {
     document.getElementById("loadingScreen").style.display == "block"
   ) {
     table();
+  } else {
+    console.log("hello");
   }
 }

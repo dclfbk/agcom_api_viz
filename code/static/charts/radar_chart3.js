@@ -1,14 +1,22 @@
 async function radarChart3() {
   const p = document.getElementById("politician");
   const pg = document.getElementById("political_group");
-  if (
-    $("#select_programs").val().length == 0 ||
-    (p.checked == false && pg.checked == false)
-  ) {
-    return 0;
-  }
   if (radarChart3Instance !== null) {
     radarChart3Instance.dispose();
+  }
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Radar Chart 3</span>";
+  $("#select_pol").select2({
+    maximumSelectionLength: 10,
+  });
+  if (
+    $("#select_programs").val()[0] == undefined ||
+    $("#select_programs").val()[0] == "" ||
+    (p.checked == false && pg.checked == false)
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Radar Chart 3<br><br> You need to select at least a program and choose between politicians and political groups to use this chart</span>";
+    return 0;
   }
   document.getElementById("barChart2").style.display = "none";
   document.getElementById("barChart3").style.display = "none";
@@ -86,7 +94,7 @@ async function radarChart3() {
   } else {
     const baseUrl =
       t +
-      selected_channel +
+      selected_program +
       "?start_date_=" +
       start_date.value.replace(/-/g, "%2F") +
       "&end_date_=" +
@@ -94,7 +102,6 @@ async function radarChart3() {
       "&kind_=" +
       cb +
       url_a +
-      url_p +
       url_t;
     var i = 1;
     while (true) {

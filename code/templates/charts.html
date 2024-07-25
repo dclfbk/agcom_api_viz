@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+  <title>AGCOM - television data</title>
+  <meta content="" name="description">
+  <meta content="" name="keywords">
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"/>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.datatables.net/2.1.0/css/dataTables.dataTables.min.css">
+  <script src="https:////cdn.datatables.net/2.1.0/js/dataTables.min.js"></script>
+
+
+  <!-- Favicon -->
+  <link href="static/assets/img/logo.svg" rel="icon" type="image/svg+xml">
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.gstatic.com" rel="preconnect">
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Nunito:300,300i,400,400i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i" rel="stylesheet">
+
+  <!-- Vendor CSS Files -->
+  <link href="static/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="static/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="static/assets/vendor/boxicons/css/boxicons.min.css" rel="stylesheet">
+  <link href="static/assets/vendor/quill/quill.snow.css" rel="stylesheet">
+  <link href="static/assets/vendor/quill/quill.bubble.css" rel="stylesheet">
+  <link href="static/assets/vendor/remixicon/remixicon.css" rel="stylesheet">
+  <link href="static/assets/vendor/simple-datatables/style.css" rel="stylesheet">
+
+  <!-- Template Main CSS File -->
+  <link href="static/assets/css/style.css" rel="stylesheet">
+
+  <style>
+    /* Stile personalizzato per l'altezza del select */
+    .select2-container .select2-selection--multiple {
+            min-height: 50px; /* Puoi modificare questa altezza in base alle tue necessità */
+        }
+
+        .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+            align-items: center;
+            height: 100%;
+        }
+</style>
+  
+</head>
+
+
+<body>
+
+  <!-- ======= Header ======= -->
+  <header id="header" class="header fixed-top d-flex align-items-center">
+
+    <div class="d-flex align-items-center justify-content-between">
+      <a href="index.html" class="logo d-flex align-items-center">
+        <img src="static/assets/img/logo-agcom.jpg" alt="">
+      </a>
+      <i class="bi bi-list toggle-sidebar-btn"></i>
+    </div><!-- End Logo -->
+
+  </header><!-- End Header -->
+
+
+  <!-- ======= Sidebar ======= -->
+  <aside id="sidebar" class="sidebar">
+
+    <ul class="sidebar-nav" id="sidebar-nav">
+
+      <li class="nav-item">
+        <a class="nav-link " href="/">
+          <i class="bi bi-grid"></i>
+          <span>Home</span>
+        </a>
+      </li><!-- End Dashboard Nav -->
+
+      <li class="nav-item">
+        <a class="nav-link collapsed" data-bs-target="#charts-nav" data-bs-toggle="collapse" href="#">
+          <i class="bi bi-bar-chart"></i><span>Charts</span><i class="bi bi-chevron-down ms-auto"></i>
+        </a>
+        <ul id="charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
+          <li>
+            <a href="#" onclick="barChart2()">
+              <i class="bi bi-circle"></i><span>Bar Chart 2</span>
+            </a>
+          </li>
+          <li>
+            <a class="barChart3_a" href="#" onclick="barChart3()">
+              <i class="bi bi-circle"></i><span>Bar Chart 3</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" onclick="calendarChart()">
+              <i class="bi bi-circle"></i><span>Calendar Chart</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" onclick="lineChart()">
+              <i class="bi bi-circle"></i><span>Line Chart</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" onclick="lineChart2()">
+              <i class="bi bi-circle"></i><span>Line Chart 2</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" onclick="radarChart()">
+              <i class="bi bi-circle"></i><span>Radar Chart</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" onclick="radarChart2()">
+              <i class="bi bi-circle"></i><span>Radar Chart 2</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" onclick="radarChart3()">
+              <i class="bi bi-circle"></i><span>RadarChart 3</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" onclick="barPieChart()">
+              <i class="bi bi-circle"></i><span>Bar + Pie Chart</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" onclick="table(tab, still_running)">
+              <i class="bi bi-circle"></i><span>Table</span>
+            </a>
+          </li>
+        </ul>
+      </li><!-- End Charts Nav -->
+
+
+      <li class="nav-item">
+        <a class="nav-link collapsed" href="faq">
+          <i class="bi bi-question-circle"></i>
+          <span>F.A.Q</span>
+        </a>
+      </li><!-- End F.A.Q Page Nav -->
+
+      <li class="nav-item">
+        <a class="nav-link collapsed" href="contact">
+          <i class="bi bi-envelope"></i>
+          <span>Contact</span>
+        </a>
+      </li><!-- End Contact Page Nav -->
+
+    </ul>
+
+  </aside><!-- End Sidebar-->
+
+
+  <main id="main" class="main">
+
+    <div class="pagetitle">
+      <h1>Charts</h1>
+      <nav>
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="/">Home</a></li>  <!-- CHANGE index.html WITH HOMEPAGE-->
+          <li class="breadcrumb-item active">Charts</li>
+        </ol>
+      </nav>
+    </div><!-- End Page Title -->
+
+    <section class="section dashboard">
+      <div class="row">
+
+        <!-- Left side columns -->
+        <div class="col-lg-8">
+          <div class="row">
+
+            <!-- Reports -->
+            <div class="col-12">
+              <div class="card">
+
+
+                <div class="card-body">
+                  <h5 class="card-title">Charts <span><br><br>Select a politician/politicial group, channel or program of interest <br> 
+                    and from the menu select a chart to analyze the data</span></h5>
+
+                    <div id="barChart2" style="width: 100%; height:600px; display: none;"></div>
+                    <div id="barChart3" style="width: 100%; height:600px; display: none;"></div>
+                    <div id="stackedBarChart" style="width: 100%; height:1600px; display: none;"></div>
+                    <div id="calendarChart" style="width: 100%; height:1500px; display: none;"></div>
+                    <div id="lineChart" style="width: 100%; height:600px; display: none;"></div>
+                    <div id="lineChart2" style="width: 100%; height:600px; display: none;"></div>
+                    <div id="radarChart" style="width: 100%; height:600px; display: none;"></div>
+                    <div id="radarChart2" style="width: 100%; height:600px; display: none;"></div>
+                    <div id="radarChart3" style="width: 100%; height:600px; display: none;"></div>
+                    <div id="barPieChart" style="width: 100%; height:600px; display: none;"></div>
+                
+                    <div id="loadingScreen" style="display: none;">
+                      <p>Caricamento in corso...</p>
+                    </div>
+                    <div id="tableDiv" style="display: none;">
+                      <table id="table" class="display" style="width:100%;">
+                        <thead>
+                          <tr>
+                            <th>Channel</th>
+                            <th>Program</th>
+                            <th>Topic</th>
+                            <th>Duration</th>
+                          </tr>
+                        </thead>
+                      </table>
+                    </div>
+
+                </div>
+
+              </div>
+            </div><!-- End Reports -->
+
+          </div>
+        </div><!-- End Left side columns -->
+
+        <!-- Right side columns -->
+        <div class="col-lg-4">
+
+          <!-- SELECTION -->
+          <div class="card" style="height: 650px;">
+
+            <div class="card-body pb-0">
+              <h5 class="card-title">SELECTION</span></h5>
+
+                <div class="formPolDiv" style="padding-top: 10px;">
+                  <form id="form_pol">
+                    <input type="radio" id="politician" value="politician" name="choose_pol" onclick="handleOptionChange(this)">
+                    <label for="politician">Politicians</label><br>
+                    <input type="radio" id="political_group" value="political_group" name="choose_pol" onclick="handleOptionChange(this)">
+                    <label for="political_group">Political Groups</label>
+                  </form>
+                </div>
+                <div class="searchPolDiv" style="padding-top: 10px; height: 10%;">
+                  <select id="select_pol" style="width: 100%;" multiple="multiple" onchange="updateCharts(), fetchAffiliations()">
+                    <option></option>
+                  </select>
+                </div>
+                <div class="searchChannelDiv" style="padding-top: 10px;">
+                  <select id="select_channels" style="width: 100%;" multiple="multiple" onchange="updateCharts(), fetchPrograms()">
+                    <option></option>
+                  </select>
+                </div>
+                <div class="searchProgramlDiv" style="padding-top: 10px;">
+                  <select id="select_programs" style="width: 100%;" multiple="multiple" onchange="updateCharts()">
+                    <option></option>
+                  </select>
+                </div>
+                <div class="searchProgramlDiv" style="padding-top: 10px;">
+                  <select id="select_topics" style="width: 100%;" multiple="multiple" onchange="updateCharts()">
+                    <option></option>
+                  </select>
+                </div>
+                <div class="searchProgramlDiv" style="padding-top: 10px;">
+                  <select id="select_affiliations" style="width: 100%;" multiple="multiple" onchange="updateCharts()">
+                    <option></option>
+                  </select>
+                </div>
+            
+                <div class="searchDate" style="padding-top: 20px;">
+                  <p>from: <input type="date" onkeydown="return false;" id="start_date" onchange="limitEndDate(), updateCharts()"/></p>  
+                  <p>to: <input type="date" onkeydown="return false;" id="end_date" onchange="updateCharts()"/></p>
+                </div>
+            
+                <div>
+                  <form id="cb">
+                    <input type="checkbox" id="news" value="news" name="choose_type" checked onclick="changeType()" onchange="updateCharts()">
+                    <label for="news">News</label><br>
+                    <input type="checkbox" id="speech" value="speech" name="choose_type" checked onclick="changeType()" onchange="updateCharts()">
+                    <label for="speech">Speech</label>
+                  </form>
+                </div>
+
+          </div><!-- End News & Updates -->
+
+        </div><!-- End Right side columns -->
+
+      </div>
+    </section>
+
+  </main><!-- End #main -->
+
+  <!-- ======= Footer ======= -->
+  <footer id="footer" class="footer">
+    <div class="copyright">
+      &copy; Copyright <strong><span>NiceAdmin</span></strong>. All Rights Reserved
+    </div>
+    <div class="credits">
+      <!-- All the links in the footer should remain intact. -->
+      <!-- You can delete the links only if you purchased the pro version. -->
+      <!-- Licensing information: https://bootstrapmade.com/license/ -->
+      <!-- Purchase the pro version with working PHP/AJAX contact form: https://bootstrapmade.com/nice-admin-bootstrap-admin-html-template/ -->
+      Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a>
+    </div>
+  </footer><!-- End Footer -->
+
+  <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+
+  <!-- Vendor JS Files -->
+  <script src="static/assets/vendor/apexcharts/apexcharts.min.js"></script>
+  <script src="static/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="static/assets/vendor/chart.js/chart.umd.js"></script>
+  <script src="static/assets/vendor/echarts/echarts.min.js"></script>
+  <script src="static/assets/vendor/quill/quill.js"></script>
+  <script src="static/assets/vendor/simple-datatables/simple-datatables.js"></script>
+  <script src="static/assets/vendor/tinymce/tinymce.min.js"></script>
+  <script src="static/assets/vendor/php-email-form/validate.js"></script>
+
+  <!-- Template Main JS File -->
+  <script src="static/assets/js/main.js"></script>
+
+
+  <script>
+
+    $(document).ready(function() {
+
+      $('#select_pol').select2({
+        placeholder: 'Cerca politico/partito',
+        maximumSelectionLength: 1,
+      });
+      $('#select_channels').select2({
+        placeholder: 'Cerca canale',
+        maximumSelectionLength: 1
+      });
+      $('#select_programs').select2({
+        placeholder: 'Cerca programma',
+        maximumSelectionLength: 1
+      });
+      $('#select_topics').select2({
+        placeholder: 'Cerca argomento',
+        maximumSelectionLength: 1
+      });
+      $('#select_affiliations').select2({
+        placeholder: 'Cerca partito',
+        maximumSelectionLength: 1
+      });
+
+      var tab = $("#table").DataTable();
+      var still_running = true;
+
+      fetchChannels();
+      fetchPrograms();
+      fetchTopics();
+      fetchAffiliations();
+
+      fetchData("/v1/dates").then(result => {
+        start_date.value = result["first_date"];
+        start_date.min = result["first_date"];
+        start_date.max = result["end_date"];
+        end_date.value = result["end_date"];
+        end_date.min = result["first_date"];
+        end_date.max = result["end_date"];
+      });
+
+    });
+
+    const TOPICS = [];
+    //function to call APIs passing url
+async function fetchData(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Network response was not ok");
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Errore nel recupero dei dati:", error);
+  }
+}
+
+// fetch topics
+async function fetchTopics() {
+  var topics = [];
+  i = 1;
+  while (true) {
+    const data = await fetchData(`/v1/topics?page=${i}`);
+    i++;
+    if (data.topics.length === 0) {
+      break;
+    }
+    data["topics"].forEach((val) => {
+      topics.push(val);
+    });
+  }
+  return topics;
+}
+(async () => {
+  const fetchedTopics = await fetchTopics();
+  TOPICS.push(...fetchedTopics); 
+})();
+
+
+
+    const start_date = document.getElementById("start_date");
+    const end_date = document.getElementById("end_date");
+
+    var cb = "both";
+
+    var radarChartInstance = null;
+    var radarChart2Instance = null;
+    var radarChart3Instance = null;
+    var lineChart2Instance = null;
+    var barChart2Instance = null;
+    var barChart3Instance = null;
+    var barPieChartInstance = null;
+    var calendarChartInstance = null;
+
+
+  </script>
+
+  <script src="/static/charts/bar_chart2.js"></script>
+  <script src="/static/charts/bar_chart3.js"></script>
+  <script src="/static/charts/bar_pie_chart.js"></script>
+  <script src="/static/charts/calendar_chart.js"></script>
+  <script src="/static/charts/line_chart.js"></script>
+  <script src="/static/charts/line_chart2.js"></script>
+  <script src="/static/charts/radar_chart.js"></script>
+  <script src="/static/charts/radar_chart2.js"></script>
+  <script src="/static/charts/radar_chart3.js"></script>
+  <script src="/static/charts/table.js"></script>
+  <script src="/static/functions/calcTime.js"></script>
+  <script src="/static/functions/changeType.js"></script>
+  <script src="/static/functions/fetchData.js"></script>
+  <script src="/static/functions/limitEndDate.js"></script>
+  <script src="/static/functions/selects.js"></script>
+  <script src="/static/functions/updateCharts.js"></script>
+
+
+</body>
+

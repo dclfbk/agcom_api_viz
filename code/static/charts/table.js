@@ -2,12 +2,22 @@ async function table(tab, still_running) {
   document.getElementById("tableDiv").style.display = "none";
   document.getElementById("loadingScreen").style.display = "block";
 
-  tab = $("#table").DataTable();
   tab.clear();
+  $("#select_pol").select2({
+    maximumSelectionLength: 1,
+  });
+  if ($("#select_pol").val().length > 1) {
+    temp = $("#select_pol").val()[0];
+    $("#select_pol").val([temp]).trigger("change");
+  }
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Table</span>";
   if (
     $("#select_pol").val()[0] == undefined ||
     $("#select_pol").val()[0] == ""
   ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Table <br><br> You need to select at least a politician/political group to use this chart</span>";
     still_running = false;
     document.getElementById("loadingScreen").style.display = "none";
     return 0;

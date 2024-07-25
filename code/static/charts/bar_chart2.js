@@ -2,7 +2,18 @@ async function barChart2() {
   if (barChart2Instance !== null) {
     barChart2Instance.dispose();
   }
-  if ($("#select_pol").val().length == 0) {
+  $("#select_pol").select2({
+    maximumSelectionLength: 4,
+    placeholder: "Cerca politico/partito",
+  });
+  document.querySelector(".card-title").innerHTML =
+    "Charts <span>/Bar Chart</span>";
+  if (
+    $("#select_pol").val()[0] == undefined ||
+    $("#select_pol").val()[0] == ""
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Bar Chart 2<br><br> You need to select at least a politician/political group to use this chart</span>";
     return 0;
   }
   document.getElementById("barChart3").style.display = "none";
