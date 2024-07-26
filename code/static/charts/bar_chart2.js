@@ -114,6 +114,12 @@ async function barChart2() {
     series.push({ name: politicians[index], type: "bar", data: m });
   });
   var option = {
+    title: {
+      left: "center",
+      top: "top",
+      subtext:
+        "check how much a politician/political group talked about a certain topic (in minutes), \n and compare up to 4 politician/political groups, \n click on a topic (bar) to hide it!",
+    },
     tooltip: {
       trigger: "axis",
       axisPointer: {
@@ -138,8 +144,11 @@ async function barChart2() {
         return result;
       },
     },
-    legend: {},
+    legend: {
+      top: 90,
+    },
     grid: {
+      top: 150,
       left: "3%",
       right: "4%",
       bottom: "3%",
@@ -191,6 +200,7 @@ async function barChart2() {
         },
         legend: {},
         grid: {
+          top: 150,
           left: "3%",
           right: "4%",
           bottom: "3%",
@@ -210,7 +220,7 @@ async function barChart2() {
           {
             type: "text",
             left: 50,
-            top: 20,
+            top: 80,
             style: {
               text: "Back",
               fontSize: 18,

@@ -111,11 +111,15 @@ async function lineChart2() {
       type: "value",
     },
     title: {
-      text: "Intervention per year",
-      subtext: "Here we can analyze the interventions each day",
+      subtext:
+        "check the interventions made per day and compare up to 4 politician/political groups",
       left: "center",
     },
+    grid: {
+      top: 150,
+    },
     legend: {
+      top: 50,
       data: politicians,
       left: "right",
       orient: "vertical",

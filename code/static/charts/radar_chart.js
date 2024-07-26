@@ -128,12 +128,12 @@ async function radarChart() {
   });
   option = {
     title: {
-      text: "Minutes of speaking",
       subtext:
-        "Here we can analyze how much a politician/poolitical group talks about a topic",
+        "show how many interventions a politician made about all topics and compare up to 4 politician/political groups",
       left: "center",
     },
     legend: {
+      top: 50,
       data: politicians,
       left: "left",
       orient: "vertical",

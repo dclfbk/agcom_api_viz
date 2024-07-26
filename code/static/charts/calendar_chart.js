@@ -111,7 +111,7 @@ async function calendarChart() {
   });
   for (var i = begin_year; i <= final_year; i++) {
     calendar.push({
-      top: 100 + (i - begin_year) * 200,
+      top: 150 + (i - begin_year) * 200,
       range: i.toString(),
       cellSize: ["auto", 20],
     });
@@ -125,6 +125,12 @@ async function calendarChart() {
     });
   }
   option = {
+    title: {
+      subtext:
+        "check a calendar with all interventions made in a day by a politician/political group",
+      top: "top",
+      left: "center",
+    },
     tooltip: {
       position: "top",
       formatter: function (params) {
@@ -150,7 +156,7 @@ async function calendarChart() {
       calculable: true,
       orient: "horizontal",
       left: "center",
-      top: "top",
+      top: 50,
     },
     calendar: calendar,
     series: series,

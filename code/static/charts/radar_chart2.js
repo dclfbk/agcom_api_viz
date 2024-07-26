@@ -88,7 +88,7 @@ async function radarChart2() {
       }
     }
   } else {
-    const baseUrl =
+    const url =
       t +
       selected_channel +
       "?start_date_=" +
@@ -100,18 +100,11 @@ async function radarChart2() {
       url_a +
       url_p +
       url_t;
-    var i = 1;
-    while (true) {
-      var url = `${baseUrl}&page=${i}`;
-      i++;
-      const data = await fetchData(url);
-      if (data.pol.length == 0) {
-        break;
-      } else {
-        names.push(data["pol"][0].name);
-        values.push(data["pol"][0].minutes);
-      }
-    }
+    const data = await fetchData(url);
+    data.pol.forEach((p) => {
+      names.push(p.name);
+      values.push(p.minutes);
+    });
   }
 
   const maxMinutes = Math.max(...values);
@@ -123,7 +116,7 @@ async function radarChart2() {
     title: {
       text: `${selected_channel}`,
       subtext:
-        "Here we can analyze how much time a channel dedicated to politicians",
+        "compare the 10 politicians/political groups that intervened the most in a channel, \n if you want you can select the politicians/ political groups to compare!",
       left: "center",
     },
     tooltip: {

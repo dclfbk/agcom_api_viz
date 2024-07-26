@@ -132,8 +132,10 @@ async function barChart3() {
   option = {
     title: {
       text: "Interventions in channel",
-      subtext: "Here we can analyze the time a channel spends for a politician",
+      subtext:
+        "check how many minutes a politician talked in every channel, \n click on a channel (bar) to analyze all the programs in that channel!",
       left: "center",
+      top: "top",
     },
     xAxis: {
       type: "category",
@@ -142,6 +144,9 @@ async function barChart3() {
     },
     yAxis: {
       type: "value",
+    },
+    grid: {
+      top: 100,
     },
     tooltip: {
       trigger: "item",

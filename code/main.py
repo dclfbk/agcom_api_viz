@@ -1451,9 +1451,7 @@ async def get_channel_politicians(
     name_: str = Query(default = "all", description="Politician"),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic"),
-    page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=1, description="Page size"),
+    topic_: str = Query(default = "all", description="Topic")
 ):
     """
     Return how much time a channel dedicated to politicians
@@ -1487,8 +1485,6 @@ async def get_channel_politicians(
     channel_politicians = filter_data(filtered_data, start_date_, end_date_, kind_)
     all_politicians = channel_politicians.select('fullname').unique().to_series().to_list()
     final_list = []
-    start_index = (page - 1) * page_size
-    end_index = start_index + page_size
 
     for p in all_politicians:
         temp = channel_politicians.filter(pl.col('fullname') == p)
@@ -1497,10 +1493,8 @@ async def get_channel_politicians(
                            "minutes" : total[0]})
 
     sorted_list = sorted(final_list, key=lambda x: x['minutes'], reverse=True)
-    sorted_list = sorted_list[:10]
-    paginated_list = sorted_list[start_index:end_index]
 
-    return { "channel": channel, "pol": paginated_list }
+    return { "channel": channel, "pol": sorted_list[:10] }
 
 
 @app.get("/v1/channel-political-groups/{channel}")
