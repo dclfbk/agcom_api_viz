@@ -12,6 +12,9 @@ async function lineChart() {
   document.getElementById("barPieChart").style.display = "none";
   document.getElementById("tableDiv").style.display = "none";
   document.getElementById("loadingScreen").style.display = "none";
+  if (lineChartInstance !== null) {
+    lineChartInstance.dispose();
+  }
   document.querySelector(".card-title").innerHTML =
     "Charts <span>/Line Chart</span>";
   if (
@@ -22,8 +25,8 @@ async function lineChart() {
       "Charts <span>/Line Chart <br><br> You need to select at least a politician/political group to use this chart</span>";
     return 0;
   }
-  var lineChart = echarts.init(lC);
-  lineChart.showLoading();
+  lineChartInstance = echarts.init(lC);
+  lineChartInstance.showLoading();
   const p = document.getElementById("politician");
   const pg = document.getElementById("political_group");
   if (p.checked == true) {
@@ -151,6 +154,6 @@ async function lineChart() {
       },
     ],
   };
-  lineChart.setOption(option);
-  lineChart.hideLoading();
+  lineChartInstance.setOption(option);
+  lineChartInstance.hideLoading();
 }

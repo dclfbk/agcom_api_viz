@@ -158,7 +158,7 @@
       <h1>Charts</h1>
       <nav>
         <ol class="breadcrumb">
-          <li class="breadcrumb-item"><a href="/">Home</a></li>  <!-- CHANGE index.html WITH HOMEPAGE-->
+          <li class="breadcrumb-item"><a href="/">Home</a></li>  
           <li class="breadcrumb-item active">Charts</li>
         </ol>
       </nav>
@@ -189,7 +189,7 @@
                     <div id="radarChart" style="width: 100%; height:800px; display: none;"></div>
                     <div id="radarChart2" style="width: 100%; height:800px; display: none;"></div>
                     <div id="radarChart3" style="width: 100%; height:800px; display: none;"></div>
-                    <div id="barPieChart" style="width: 100%; height:800px; display: none;"></div>
+                    <div id="barPieChart" style="width: 100%; height:1000px; display: none;"></div>
                 
                     <div id="loadingScreen" style="display: none;">
                       <p>Caricamento in corso...</p>
@@ -310,7 +310,7 @@
 
       $('#select_pol').select2({
         placeholder: 'Cerca politico/partito',
-        maximumSelectionLength: 1,
+        maximumSelectionLength: 10,
       });
       $('#select_channels').select2({
         placeholder: 'Cerca canale',
@@ -363,11 +363,60 @@
     var radarChartInstance = null;
     var radarChart2Instance = null;
     var radarChart3Instance = null;
+    var lineChartInstance = null;
     var lineChart2Instance = null;
     var barChart2Instance = null;
     var barChart3Instance = null;
     var barPieChartInstance = null;
     var calendarChartInstance = null;
+
+    const select = (el, all = false) => {
+    el = el.trim();
+    if (all) {
+      return [...document.querySelectorAll(el)];
+    } else {
+      return document.querySelector(el);
+    }
+  };
+    const mainContainer = select("#main");
+    if (mainContainer) {
+      setTimeout(() => {
+        new ResizeObserver(function () {
+          resize();
+        }).observe(mainContainer);
+      }, 200);
+    }
+
+    function resize(){
+      if(radarChartInstance != null){
+        radarChartInstance.resize();
+      }
+      if(radarChart2Instance != null){
+        radarChart2Instance.resize();
+      }
+      if(radarChart3Instance != null){
+        radarChart3Instance.resize();
+      }
+      if(lineChartInstance != null){
+        lineChartInstance.resize();
+      }
+      if(lineChart2Instance != null){
+        lineChart2Instance.resize();
+      }
+      if(barChart2Instance != null){
+        barChart2Instance.resize();
+      }
+      if(barChart3Instance != null){
+        barChart3Instance.resize();
+      }
+      if(barPieChartInstance != null){
+        barPieChartInstance.resize();
+      }
+      if(calendarChartInstance != null){
+        calendarChartInstance.resize();
+      }
+    }
+
 
 
   </script>

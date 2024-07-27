@@ -178,7 +178,7 @@ async function barPieChart() {
   series.push({
     name: "%",
     type: "pie",
-    center: ["80%", "15%"],
+    center: ["80%", "20%"],
     radius: "15%",
     z: 100,
     tooltip: {
@@ -219,18 +219,19 @@ async function barPieChart() {
       },
       title: {
         subtext:
-          "for every year how much minutes a politician/political group \n talked in all the programs of a selected channel \n and compare up to 4 politician/political groups",
+          "check for every year how much minutes a politician/political group \n talked in all the programs of a selected channel \n and compare up to 4 politician/political groups \n click on a program (bar) to hide it! ",
         left: "center",
         top: "top",
       },
       tooltip: {},
       legend: {
+        top: 100,
         left: "right",
         data: data_legend,
       },
       calculable: true,
       grid: {
-        top: 150,
+        top: 300,
         bottom: 100,
         tooltip: {
           trigger: "axis",
