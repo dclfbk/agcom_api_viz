@@ -67,6 +67,7 @@ async function lineChart2() {
     url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
   }
   const selectedValues = $("#select_pol").val();
+  var total_minutes = 0;
   for (const value of selectedValues) {
     const baseUrl =
       t +
@@ -91,10 +92,17 @@ async function lineChart2() {
         break;
       } else {
         values.push(data["interventions"][0]);
+        total_minutes += data["max_value"];
       }
     }
     series.push(values);
     politicians.push(value);
+  }
+  if (total_minutes == 0) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Bar + Pie Chart</span> <br><br> NO DATA FOUND";
+    lineChart2Instance.hideLoading();
+    return 0;
   }
   series.forEach((pol, index) => {
     var f = [];

@@ -68,6 +68,7 @@ async function lineChart() {
     url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
   }
   const selectedValues = $("#select_pol").val();
+  var total_minutes = 0;
   for (const value of selectedValues) {
     const url =
       t +
@@ -83,6 +84,7 @@ async function lineChart() {
       url_p +
       url_t;
     const data = await fetchData(url);
+    total_minutes += data.total;
     years = data["years"];
     var interventions = data["interventions"];
     series.push(interventions);
@@ -91,6 +93,12 @@ async function lineChart() {
     } else if (pg.checked == true) {
       politicians.push(data["political group"]);
     }
+  }
+  if (total_minutes == 0) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Bar + Pie Chart</span> <br><br> NO DATA FOUND";
+    lineChartInstance.hideLoading();
+    return 0;
   }
   option = {
     xAxis: {

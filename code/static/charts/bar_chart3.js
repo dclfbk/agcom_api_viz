@@ -84,6 +84,7 @@ async function barChart3() {
     channels: [],
   };
   var i = 1;
+  var total_minutes = 0;
   while (true) {
     var url = `${baseUrl}&page=${i}`;
     i++;
@@ -92,7 +93,14 @@ async function barChart3() {
       break;
     } else {
       data.channels.push(i_data["channels"][0]);
+      total_minutes += i_data.channels[0].minutes;
     }
+  }
+  if (total_minutes == 0) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Bar Chart</span> <br><br> NO DATA FOUND";
+    barChart3Instance.hideLoading();
+    return 0;
   }
   var final = [];
   for (let i = 0; i < data["channels"].length; i++) {
@@ -152,7 +160,6 @@ async function barChart3() {
       trigger: "item",
       formatter: function (params) {
         var result = "";
-        result += "<b>" + params.name + "</b>";
         result += '<div style="display: flex; align-items: center;">';
         result +=
           '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:' +
@@ -188,8 +195,11 @@ async function barChart3() {
     if (p.name == "altro") {
       sbC.style.height = "4000px";
     }
-    var stackedBarChart = echarts.init(sbC);
-    stackedBarChart.showLoading();
+    if (stackedBarChartInstance !== null) {
+      stackedBarChartInstance.dispose();
+    }
+    stackedBarChartInstance = echarts.init(sbC);
+    stackedBarChartInstance.showLoading();
     var data3 = { channel: "altro", programs: [] };
     var list_channels = [];
     if (p.name != "altro") {
@@ -270,11 +280,11 @@ async function barChart3() {
 
     const s_d_all = function () {
       var newSelected = {};
-      for (item in stackedBarChart.getOption().legend[0].selected) {
+      for (item in stackedBarChartInstance.getOption().legend[0].selected) {
         newSelected[item] = !check_selection;
       }
       check_selection = !check_selection;
-      stackedBarChart.setOption({
+      stackedBarChartInstance.setOption({
         legend: {
           selected: newSelected,
         },
@@ -364,13 +374,13 @@ async function barChart3() {
         },
       ],
     };
-    stackedBarChart.setOption(option3);
-    stackedBarChart.hideLoading();
+    stackedBarChartInstance.setOption(option3);
+    stackedBarChartInstance.hideLoading();
 
-    stackedBarChart.on("legendselectchanged", async function (p) {
+    stackedBarChartInstance.on("legendselectchanged", async function (p) {
       if (Object.values(p.selected).every((value) => value === true)) {
         check_selection = true;
-        stackedBarChart.setOption({
+        stackedBarChartInstance.setOption({
           graphic: [
             {
               type: "text",
@@ -385,7 +395,7 @@ async function barChart3() {
         });
       } else if (Object.values(p.selected).every((value) => value === false)) {
         check_selection = false;
-        stackedBarChart.setOption({
+        stackedBarChartInstance.setOption({
           graphic: [
             {
               type: "text",

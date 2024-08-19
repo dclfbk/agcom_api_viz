@@ -99,6 +99,7 @@ async function barPieChart() {
   ) {
     url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
   }
+  var total_minutes = 0;
   for (const value of selectedValues) {
     const url =
       t +
@@ -115,6 +116,7 @@ async function barPieChart() {
       url_p +
       url_t;
     const data = await fetchData(url);
+    total_minutes += data.total;
     if (p.checked == true) {
       data_legend.push(data["politician"]);
     } else if (pg.checked == true) {
@@ -145,6 +147,12 @@ async function barPieChart() {
     );
     first_done = true;
     series.push({ name: value, type: "bar" });
+  }
+  if (total_minutes == 0) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Bar + Pie Chart</span> <br><br> NO DATA FOUND";
+    barPieChartInstance.hideLoading();
+    return 0;
   }
   for (var pol in politicians_list) {
     for (var j = min_year; j <= max_year; j++) {
@@ -223,7 +231,25 @@ async function barPieChart() {
         left: "center",
         top: "top",
       },
-      tooltip: {},
+      tooltip: {
+        formatter: function (params) {
+          var result = "";
+          result += '<div style="display: flex; align-items: center;">';
+          result +=
+            '<b style="padding-right: 10px;">' + params[0].name + ":</b></div>";
+          params.forEach((value) => {
+            result +=
+              '<div style="display: flex; align-items: center;"><span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:' +
+              value.color +
+              ';"></span>';
+            result +=
+              '<b style="padding-right: 10px;">' + value.seriesName + ":</b>";
+            result += calcTime(value.value);
+            result += "</div>";
+          });
+          return result;
+        },
+      },
       legend: {
         top: 100,
         left: "right",
@@ -309,9 +335,7 @@ async function barPieChart() {
                 },
               },
             },
-            title: {
-              subtext: "example",
-            },
+            title: {},
             tooltip: {},
             legend: {
               left: "right",

@@ -67,6 +67,7 @@ async function radarChart() {
     url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
   }
   const selectedValues = $("#select_pol").val();
+  var total_minutes = 0;
   for (const value of selectedValues) {
     var i = 1;
     const baseUrl =
@@ -91,10 +92,17 @@ async function radarChart() {
         break;
       } else {
         temp_values.push(data["topics"][0]);
+        total_minutes += data.topics[0].minutes;
       }
     }
     values.push(temp_values);
     politicians.push(value);
+  }
+  if (total_minutes == 0) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Bar + Pie Chart</span> <br><br> NO DATA FOUND";
+    radarChartInstance.hideLoading();
+    return 0;
   }
   var minutes = [];
   var topics = [];

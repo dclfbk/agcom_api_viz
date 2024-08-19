@@ -107,6 +107,17 @@ async function radarChart2() {
     });
   }
 
+  if (
+    values.every(function (element) {
+      return element === 0;
+    }) == true
+  ) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Radar Chart</span> <br><br> NO DATA FOUND";
+    radarChart2Instance.hideLoading();
+    return 0;
+  }
+
   const maxMinutes = Math.max(...values);
 
   var indicators = names.map(function (name) {
@@ -132,7 +143,7 @@ async function radarChart2() {
         data: [
           {
             value: values,
-            name: "Allocated Budget",
+            name: "Minutes:",
           },
         ],
       },

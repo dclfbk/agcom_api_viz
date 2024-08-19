@@ -85,6 +85,7 @@ async function calendarChart() {
     "begin year": 0,
     "final year": 0,
   };
+  var total_minutes = 0;
   while (true) {
     var url = `${baseUrl}&page=${i}`;
     i++;
@@ -96,7 +97,14 @@ async function calendarChart() {
       data.max_value = i_data.max_value;
       data["begin year"] = i_data["begin year"];
       data["final year"] = i_data["final year"];
+      total_minutes += i_data["max_value"];
     }
+  }
+  if (total_minutes == 0) {
+    document.querySelector(".card-title").innerHTML =
+      "Charts <span>/Calendar Chart</span> <br><br> NO DATA FOUND";
+    calendarChartInstance.hideLoading();
+    return 0;
   }
   var interv = data["interventions"];
   var max_value = data["max_value"];

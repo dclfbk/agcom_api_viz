@@ -114,7 +114,7 @@ async def read_index():
 @app.get("/charts")
 async def read_charts():
     """
-    Serve the chartsy.html file.
+    Serve the charts.html file.
     """
     return FileResponse('templates/charts.html')
 
@@ -654,6 +654,7 @@ async def get_interventions_politician_per_year(
     years = []
     interventions = []
     minutes = []
+    total_minutes = 0
 
     while first_year != (last_year + 1):
         fy = datetime.strptime(str(first_year), '%Y')
@@ -663,10 +664,11 @@ async def get_interventions_politician_per_year(
         years.append(str(first_year))
         interventions.append(a.shape[0])
         minutes.append(a.select('duration').sum().to_series().to_list()[0])
+        total_minutes += a.select('duration').sum().to_series().to_list()[0]
         first_year += 1
 
     return { "politician": name, "years": years,
-            "interventions": interventions, "minutes": minutes }
+            "interventions": interventions, "minutes": minutes, "total": total_minutes }
 
 
 @app.get("/v1/interventions-political-group-per-year/{name}")
@@ -711,6 +713,7 @@ async def get_interventions_political_group_per_year(
     years = []
     interventions = []
     minutes = []
+    total_minutes = 0
 
     while first_year != (last_year + 1):
         fy = datetime.strptime(str(first_year), '%Y')
@@ -720,10 +723,11 @@ async def get_interventions_political_group_per_year(
         years.append(first_year)
         interventions.append(a.shape[0])
         minutes.append(a.select('duration').sum().to_series().to_list()[0])
+        total_minutes += a.select('duration').sum().to_series().to_list()[0]
         first_year += 1
 
     return { "political group": name, "years": years,
-            "interventions": interventions, "minutes": minutes }
+            "interventions": interventions, "minutes": minutes, "total": total_minutes }
 
 # -------------------------------------------------------
 
@@ -1159,6 +1163,7 @@ async def get_minutes_channel_per_politician(
     last_year = int(end_date_.split('/')[0])
 
     final_programs = []
+    total = 0
 
     for prog in programs_channel:
         temp_prgrm = {}
@@ -1176,11 +1181,12 @@ async def get_minutes_channel_per_politician(
             a = temp.filter(pl.col('day') >= fy)
             a = a.filter(pl.col('day') <= ly)
             datas[m_y] = a.select('duration').sum().to_series().to_list()[0]
+            total += a.select('duration').sum().to_series().to_list()[0]
             m_y += 1
         temp_prgrm["data"] = datas
         final_programs.append(temp_prgrm)
 
-    return { "politician": name, "programs": final_programs }
+    return { "politician": name, "total": total, "programs": final_programs }
 
 
 @app.get("/v1/minutes-channel-per-political-group/{channel}/{name}")
@@ -1224,6 +1230,7 @@ async def get_minutes_channel_per_political_group(
     last_year = int(end_date_.split('/')[0])
 
     final_programs = []
+    total = 0
 
     for prog in programs_channel:
         temp_prgrm = {}
@@ -1241,11 +1248,12 @@ async def get_minutes_channel_per_political_group(
             a = temp.filter(pl.col('day') >= fy)
             a = a.filter(pl.col('day') <= ly)
             datas[m_y] = a.select('duration').sum().to_series().to_list()[0]
+            total += a.select('duration').sum().to_series().to_list()[0]
             m_y += 1
         temp_prgrm["data"] = datas
         final_programs.append(temp_prgrm)
 
-    return { "political group": name, "programs": final_programs }
+    return { "political group": name, "total": total, "programs": final_programs }
 
 # -------------------------------------------------------
 
