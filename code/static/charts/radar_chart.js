@@ -46,25 +46,27 @@ async function radarChart() {
     $("#select_channels").val()[0] != undefined &&
     $("#select_channels").val()[0] != ""
   ) {
-    url_c += `&channel_=${$("#select_channels").val()[0]}`;
+    url_c += `&channel_=${encodeURIComponent($("#select_channels").val()[0])}`;
   }
   if (
     $("#select_programs").val()[0] != undefined &&
     $("#select_programs").val()[0] != ""
   ) {
-    url_p += `&program_=${$("#select_programs").val()[0]}`;
+    url_p += `&program_=${encodeURIComponent($("#select_programs").val()[0])}`;
   }
   if (
     $("#select_topics").val()[0] != undefined &&
     $("#select_topics").val()[0] != ""
   ) {
-    url_t += `&topic_=${$("#select_topics").val()[0]}`;
+    url_t += `&topic_=${encodeURIComponent($("#select_topics").val()[0])}`;
   }
   if (
     $("#select_affiliations").val()[0] != undefined &&
     $("#select_affiliations").val()[0] != ""
   ) {
-    url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
+    url_a += `&affiliation_=${encodeURIComponent(
+      $("#select_affiliations").val()[0]
+    )}`;
   }
   const selectedValues = $("#select_pol").val();
   var total_minutes = 0;
@@ -162,6 +164,23 @@ async function radarChart() {
     },
     tooltip: {
       trigger: "item",
+      formatter: function (params) {
+        var result = "";
+        result += '<div style="display: flex; align-items: center;">';
+        result +=
+          '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:' +
+          params.color +
+          ';"></span>';
+        result +=
+          '<b style="padding-right: 10px;">' + params.name + "</b></div>";
+        indicator.forEach((vv, index) => {
+          result += '<div style="display: flex; align-items: center;">';
+          result += '<b style="padding-right: 10px;">' + vv.name + ":</b>";
+          result += calcTime(params.value[index]);
+          result += "</div>";
+        });
+        return result;
+      },
     },
     radar: {
       indicator: indicator,

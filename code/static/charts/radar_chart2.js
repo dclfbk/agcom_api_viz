@@ -44,19 +44,21 @@ async function radarChart2() {
     $("#select_programs").val()[0] != undefined &&
     $("#select_programs").val()[0] != ""
   ) {
-    url_p += `&program_=${$("#select_programs").val()[0]}`;
+    url_p += `&program_=${encodeURIComponent($("#select_programs").val()[0])}`;
   }
   if (
     $("#select_topics").val()[0] != undefined &&
     $("#select_topics").val()[0] != ""
   ) {
-    url_t += `&topic_=${$("#select_topics").val()[0]}`;
+    url_t += `&topic_=${encodeURIComponent($("#select_topics").val()[0])}`;
   }
   if (
     $("#select_affiliations").val()[0] != undefined &&
     $("#select_affiliations").val()[0] != ""
   ) {
-    url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
+    url_a += `&affiliation_=${encodeURIComponent(
+      $("#select_affiliations").val()[0]
+    )}`;
   }
   const selected_channel = $("#select_channels").val();
   const selected_pol = $("#select_pol").val();
@@ -66,7 +68,7 @@ async function radarChart2() {
     for (const value of selected_pol) {
       const url =
         t +
-        selected_channel +
+        encodeURIComponent(selected_channel) +
         "?start_date_=" +
         start_date.value.replace(/-/g, "%2F") +
         "&end_date_=" +
@@ -132,6 +134,23 @@ async function radarChart2() {
     },
     tooltip: {
       trigger: "item",
+      formatter: function (params) {
+        var result = "";
+        result += '<div style="display: flex; align-items: center;">';
+        result +=
+          '<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:' +
+          params.color +
+          ';"></span>';
+        result +=
+          '<b style="padding-right: 10px;">' + params.name + "</b></div>";
+        indicators.forEach((vv, index) => {
+          result += '<div style="display: flex; align-items: center;">';
+          result += '<b style="padding-right: 10px;">' + vv.name + ":</b>";
+          result += calcTime(params.value[index]);
+          result += "</div>";
+        });
+        return result;
+      },
     },
     radar: {
       indicator: indicators,

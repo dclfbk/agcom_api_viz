@@ -79,25 +79,27 @@ async function barPieChart() {
     $("#select_channels").val()[0] != undefined &&
     $("#select_channels").val()[0] != ""
   ) {
-    url_c += `${$("#select_channels").val()[0]}`;
+    url_c += `${encodeURIComponent($("#select_channels").val()[0])}`;
   }
   if (
     $("#select_programs").val()[0] != undefined &&
     $("#select_programs").val()[0] != ""
   ) {
-    url_p += `&program_=${$("#select_programs").val()[0]}`;
+    url_p += `&program_=${encodeURIComponent($("#select_programs").val()[0])}`;
   }
   if (
     $("#select_topics").val()[0] != undefined &&
     $("#select_topics").val()[0] != ""
   ) {
-    url_t += `&topic_=${$("#select_topics").val()[0]}`;
+    url_t += `&topic_=${encodeURIComponent($("#select_topics").val()[0])}`;
   }
   if (
     $("#select_affiliations").val()[0] != undefined &&
     $("#select_affiliations").val()[0] != ""
   ) {
-    url_a += `&affiliation_=${$("#select_affiliations").val()[0]}`;
+    url_a += `&affiliation_=${encodeURIComponent(
+      $("#select_affiliations").val()[0]
+    )}`;
   }
   var total_minutes = 0;
   for (const value of selectedValues) {
