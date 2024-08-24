@@ -107,16 +107,16 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")
 async def read_index():
     """
+    Serve the home.html file.
+    """
+    return FileResponse('templates/home.html')
+
+@app.get("/index")
+async def read_charts():
+    """
     Serve the index.html file.
     """
     return FileResponse('templates/index.html')
-
-@app.get("/charts")
-async def read_charts():
-    """
-    Serve the charts.html file.
-    """
-    return FileResponse('templates/charts.html')
 
 @app.get("/faq")
 async def read_faq():
@@ -1459,7 +1459,8 @@ async def get_channel_politicians(
     name_: str = Query(default = "all", description="Politician"),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topic_: str = Query(default = "all", description="Topic"),
+    n_pol: int = Query(default = 10, description="number of politicians to analyze")
 ):
     """
     Return how much time a channel dedicated to politicians
@@ -1502,7 +1503,7 @@ async def get_channel_politicians(
 
     sorted_list = sorted(final_list, key=lambda x: x['minutes'], reverse=True)
 
-    return { "channel": channel, "pol": sorted_list[:10] }
+    return { "channel": channel, "pol": sorted_list[:n_pol] }
 
 
 @app.get("/v1/channel-political-groups/{channel}")
@@ -1513,7 +1514,8 @@ async def get_channel_political_groups(
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     name_: str = Query(default = "all", description="Political group"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topic_: str = Query(default = "all", description="Topic"),
+    n_pol: int = Query(default = 10, description="number of political groups to analyze")
 ):
     """
     Return how much time a channel dedicated to political groups
@@ -1551,7 +1553,7 @@ async def get_channel_political_groups(
 
     sorted_list = sorted(final_list, key=lambda x: x['minutes'], reverse=True)
 
-    return { "channel": channel, "pol": sorted_list[:10] }
+    return { "channel": channel, "pol": sorted_list[:n_pol] }
 
 # -------------------------------------------------------
 
@@ -1564,7 +1566,8 @@ async def get_program_politicians(
     name_: str = Query(default = "all", description="Politician"),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     channel_: str = Query(default = "all", description="Channel"),
-    topic_: str = Query(default = "all", description="Topic")
+    topic_: str = Query(default = "all", description="Topic"),
+    n_pol: int = Query(default = 10, description="number of politicians to analyze")
 ):
     """
     Return how much time a program dedicated to politicians
@@ -1607,7 +1610,7 @@ async def get_program_politicians(
 
     sorted_list = sorted(final_list, key=lambda x: x['minutes'], reverse=True)
 
-    return { "program": program, "pol": sorted_list[:10] }
+    return { "program": program, "pol": sorted_list[:n_pol] }
 
 
 @app.get("/v1/program-political-groups/{program}")
@@ -1618,7 +1621,8 @@ async def get_program_political_groups(
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     name_: str = Query(default = "all", description="Political group"),
     channel_: str = Query(default = "all", description="Channel"),
-    topic_: str = Query(default = "all", description="Topic")
+    topic_: str = Query(default = "all", description="Topic"),
+    n_pol: int = Query(default = 10, description="number of political groups to analyze")
 ):
     """
     Return how much time a program dedicated to political groups
@@ -1656,4 +1660,4 @@ async def get_program_political_groups(
 
     sorted_list = sorted(final_list, key=lambda x: x['minutes'], reverse=True)
 
-    return { "program": program, "pol": sorted_list[:10] }
+    return { "program": program, "pol": sorted_list[:n_pol] }
