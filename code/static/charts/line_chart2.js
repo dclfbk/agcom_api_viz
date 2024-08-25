@@ -16,13 +16,13 @@ async function lineChart2() {
     lineChart2Instance.dispose();
   }
   document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Line Chart 2</span>";
+    "Confronto Politici <span>/Grafico a Linee 2</span>";
   if (
     $("#select_pol").val()[0] == undefined ||
     $("#select_pol").val()[0] == ""
   ) {
     document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Line Chart 2<br><br> You need to select at least a politician/political group to use this chart</span>";
+      "Confronto Politici <span>/Grafico a Linee 2<br><br> You need to select at least a politician/political group to use this chart</span>";
     return 0;
   }
   lineChart2Instance = echarts.init(lC);

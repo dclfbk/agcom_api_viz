@@ -32,6 +32,11 @@ async function selectPolLength1() {
   $("#select_pol").select2({
     maximumSelectionLength: 1,
     placeholder: "Cerca politico/partito",
+    language: {
+      noResults: function () {
+        return "Seleziona un opzione tra partiti e politici";
+      },
+    },
   });
   if ($("#select_pol").val().length > 1) {
     temp = $("#select_pol").val()[0];
@@ -43,6 +48,11 @@ async function selectPolLength4() {
   $("#select_pol").select2({
     maximumSelectionLength: 4,
     placeholder: "Cerca politico/partito",
+    language: {
+      noResults: function () {
+        return "Seleziona un opzione tra partiti e politici";
+      },
+    },
   });
   if ($("#select_pol").val().length > 4) {
     temp = [
@@ -59,5 +69,10 @@ async function selectPolLength10() {
   $("#select_pol").select2({
     maximumSelectionLength: 10,
     placeholder: "Cerca politico/partito",
+    language: {
+      noResults: function () {
+        return "Seleziona un opzione tra partiti e politici";
+      },
+    },
   });
 }

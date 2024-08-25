@@ -18,14 +18,14 @@ async function radarChart3() {
     radarChart3Instance.dispose();
   }
   document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Radar Chart 3</span>";
+    "Analisi Programma <span>/Grafico Radar</span>";
   if (
     $("#select_programs").val()[0] == undefined ||
     $("#select_programs").val()[0] == "" ||
     (p.checked == false && pg.checked == false)
   ) {
     document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Radar Chart 3<br><br> You need to select at least a program and choose between politicians and political groups to use this chart</span>";
+      "Analisi Programma <span>/Grafico Radar<br><br> You need to select at least a program and choose between politicians and political groups to use this chart</span>";
     return 0;
   }
   radarChart3Instance = echarts.init(rC);

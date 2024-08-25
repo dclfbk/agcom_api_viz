@@ -16,13 +16,13 @@ async function radarChart() {
     radarChartInstance.dispose();
   }
   document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Radar Chart</span>";
+    "Confronto Politici <span>/Grafico Radar</span>";
   if (
     $("#select_pol").val()[0] == undefined ||
     $("#select_pol").val()[0] == ""
   ) {
     document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Radar Chart <br><br> You need to select at least a politician/political group to use this chart</span>";
+      "Confronto Politici <span>/Grafico Radar<br><br> You need to select at least a politician/political group to use this chart</span>";
     return 0;
   }
   radarChartInstance = echarts.init(rC);

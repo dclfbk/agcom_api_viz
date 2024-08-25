@@ -35,7 +35,7 @@ async function barPieChart() {
     barPieChartInstance.dispose();
   }
   document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Bar + Pie Chart</span>";
+    "Analisi Canale <span>/Grafico a Barre</span>";
   if (
     $("#select_pol").val()[0] == undefined ||
     $("#select_pol").val()[0] == "" ||
@@ -43,7 +43,7 @@ async function barPieChart() {
     $("#select_channels").val()[0] == ""
   ) {
     document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Bar + Pie Chart <br><br> You need to select at least a politician/political group and a channel to use this chart</span>";
+      "Analisi Canale <span>/Grafico a Barre<br><br> You need to select at least a politician/political group and a channel to use this chart</span>";
     return 0;
   }
   barPieChartInstance = echarts.init(bpC);

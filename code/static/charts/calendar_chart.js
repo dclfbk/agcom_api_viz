@@ -16,13 +16,13 @@ async function calendarChart() {
     calendarChartInstance.dispose();
   }
   document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Calendar Chart</span>";
+    "Analisi Politico <span>/Grafico a Calendario</span>";
   if (
     $("#select_pol").val()[0] == undefined ||
     $("#select_pol").val()[0] == ""
   ) {
     document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Calendar Chart <br><br> You need to select at least a politician/political group to use this chart</span>";
+      "Analisi Politico <span>/Grafico a Calendario<br><br> You need to select at least a politician/political group to use this chart</span>";
     return 0;
   }
   calendarChartInstance = echarts.init(cC);

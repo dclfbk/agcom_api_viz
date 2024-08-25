@@ -16,13 +16,13 @@ async function table(tab, still_running) {
     tab.clear();
   }
   document.querySelector(".card-title").innerHTML =
-    "Charts <span>/Table</span>";
+    "Analisi Politico <span>/Tabella</span>";
   if (
     $("#select_pol").val()[0] == undefined ||
     $("#select_pol").val()[0] == ""
   ) {
     document.querySelector(".card-title").innerHTML =
-      "Charts <span>/Table <br><br> You need to select at least a politician/political group to use this chart</span>";
+      "Analisi Politico <span>/Tabella<br><br> You need to select at least a politician/political group to use this chart</span>";
     still_running = false;
     document.getElementById("loadingScreen").style.display = "none";
     document.getElementById("tableDiv").style.display = "block";
