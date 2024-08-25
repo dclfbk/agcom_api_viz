@@ -72,84 +72,26 @@
           <i class="bi bi-grid"></i>
           <span>Home</span>
         </a>
-      </li><!-- End Dashboard Nav -->
+      </li>
 
-      <!-- <li class="nav-item">
-        <a class="nav-link collapsed" data-bs-target="#charts-nav" data-bs-toggle="collapse" href="#">
-          <i class="bi bi-bar-chart"></i><span>Charts</span><i class="bi bi-chevron-down ms-auto"></i>
+      <li class="nav-item">
+        <a class="nav-link collapsed" data-bs-target="#bar-charts-nav" data-bs-toggle="collapse" href="#">
+          <i class="bi-person"></i><span>Analisi Politico</span><i class="bi bi-chevron-down ms-auto"></i>
         </a>
-        <ul id="charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
+        <ul id="bar-charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
           <li>
-            <a href="#" onclick="barChart2(), selectPolLength4()">
-              <i class="bi bi-circle"></i><span>Bar Chart 2</span>
-            </a>
-          </li>
-          <li>
-            <a class="barChart3_a" href="#" onclick="barChart3(), selectPolLength1()">
-              <i class="bi bi-circle"></i><span>Bar Chart 3</span>
+            <a href="#" onclick="barChart3(), selectPolLength1()">
+              <i class="bi-bar-chart-fill"></i><span>Grafico a Barre</span>
             </a>
           </li>
           <li>
             <a href="#" onclick="calendarChart(), selectPolLength1()">
-              <i class="bi bi-circle"></i><span>Calendar Chart</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" onclick="lineChart(), selectPolLength4()">
-              <i class="bi bi-circle"></i><span>Line Chart</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" onclick="lineChart2(), selectPolLength4()">
-              <i class="bi bi-circle"></i><span>Line Chart 2</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" onclick="radarChart(), selectPolLength4()">
-              <i class="bi bi-circle"></i><span>Radar Chart</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" onclick="radarChart2(), selectPolLength10()">
-              <i class="bi bi-circle"></i><span>Radar Chart 2</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" onclick="radarChart3(), selectPolLength10()">
-              <i class="bi bi-circle"></i><span>RadarChart 3</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" onclick="barPieChart(), selectPolLength4()">
-              <i class="bi bi-circle"></i><span>Bar + Pie Chart</span>
+              <i class="bi-calendar4-week"></i><span>Grafico a Calendario</span>
             </a>
           </li>
           <li>
             <a href="#" onclick="table(tab, still_running), selectPolLength1()">
-              <i class="bi bi-circle"></i><span>Table</span>
-            </a>
-          </li>
-        </ul>
-      </li>End Charts Nav -->
-
-      <li class="nav-item">
-        <a class="nav-link collapsed" data-bs-target="#bar-charts-nav" data-bs-toggle="collapse" href="#">
-          <i class="bi-bar-chart-fill"></i><span>Grafici a barre</span><i class="bi bi-chevron-down ms-auto"></i>
-        </a>
-        <ul id="bar-charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
-          <li>
-            <a href="#" onclick="barPieChart(), selectPolLength4()">
-              <i class="bi bi-circle"></i><span>Grafico 1</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" onclick="barChart2(), selectPolLength4()">
-              <i class="bi bi-circle"></i><span>Grafico 2</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" onclick="barChart3(), selectPolLength1()">
-              <i class="bi bi-circle"></i><span>Grafico 3</span>
+              <i class="bi-table"></i><span>Tabella</span>
             </a>
           </li>
         </ul>
@@ -157,40 +99,45 @@
 
       <li class="nav-item">
         <a class="nav-link collapsed" data-bs-target="#line-charts-nav" data-bs-toggle="collapse" href="#">
-          <i class="bi-graph-up"></i><span>Grafici a linee</span><i class="bi bi-chevron-down ms-auto"></i>
+          <i class="bi-people-fill"></i><span>Confronto Politici</span><i class="bi bi-chevron-down ms-auto"></i>
         </a>
         <ul id="line-charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
           <li>
+            <a href="#" onclick="barChart2(), selectPolLength4()">
+              <i class="bi-bar-chart-fill"></i><span>Grafico a Barre</span>
+            </a>
+          </li>
+          <li>
             <a href="#" onclick="lineChart(), selectPolLength4()">
-              <i class="bi bi-circle"></i><span>Grafico 1</span>
+              <i class="bi-graph-up"></i><span>Grafico a Linee 1</span>
             </a>
           </li>
           <li>
             <a href="#" onclick="lineChart2(), selectPolLength4()">
-              <i class="bi bi-circle"></i><span>Grafico 2</span>
+              <i class="bi-graph-up"></i><span>Grafico a Linee 2</span>
             </a>
           </li>
+          <li>
+            <a href="#" onclick="radarChart(), selectPolLength4()">
+              <i class="bi-hexagon"></i><span>Grafico Radar</span>
+            </a>
+          </li>
+          <li>
         </ul>
       </li><!-- End Charts Nav -->
 
       <li class="nav-item">
         <a class="nav-link collapsed" data-bs-target="#radar-charts-nav" data-bs-toggle="collapse" href="#">
-          <i class="bi-hexagon"></i><span>Grafici a Radar</span><i class="bi bi-chevron-down ms-auto"></i>
+          <i class="bi-tv"></i><span>Analisi Canale</span><i class="bi bi-chevron-down ms-auto"></i>
         </a>
         <ul id="radar-charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
           <li>
-            <a href="#" onclick="radarChart(), selectPolLength4()">
-              <i class="bi bi-circle"></i><span>Grafico 1</span>
+            <a href="#" onclick="barPieChart(), selectPolLength4()">
+              <i class="bi-bar-chart-fill"></i><span>Grafico a Barre</span>
             </a>
           </li>
-          <li>
             <a href="#" onclick="radarChart2(), selectPolLength10()">
-              <i class="bi bi-circle"></i><span>Grafico 2</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" onclick="radarChart3(), selectPolLength10()">
-              <i class="bi bi-circle"></i><span>Grafico 3</span>
+              <i class="bi-hexagon"></i><span>Grafico Radar</span>
             </a>
           </li>
         </ul>
@@ -198,22 +145,23 @@
 
       <li class="nav-item">
         <a class="nav-link collapsed" data-bs-target="#other-charts-nav" data-bs-toggle="collapse" href="#">
-          <i class="bi-calendar4-week"></i><span>Altri Grafici</span><i class="bi bi-chevron-down ms-auto"></i>
+          <i class="bi-collection-play"></i><span>Analisi Programma</span><i class="bi bi-chevron-down ms-auto"></i>
         </a>
         <ul id="other-charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
           <li>
-            <a href="#" onclick="calendarChart(), selectPolLength1()">
-              <i class="bi bi-circle"></i><span>Grafico a Calendario</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" onclick="table(tab, still_running), selectPolLength1()">
-              <i class="bi bi-circle"></i><span>Tabella</span>
+            <a href="#" onclick="radarChart3(), selectPolLength10()">
+              <i class="bi-hexagon"></i><span>Grafico Radar</span>
             </a>
           </li>
         </ul>
       </li><!-- End Charts Nav -->
 
+      <li class="nav-item">
+        <a class="nav-link collapsed " href="/docs">
+          <i class="bi-archive"></i>
+          <span>Documentazione APIs</span>
+        </a>
+      </li>
 
       <li class="nav-item">
         <a class="nav-link collapsed" href="faq">
@@ -237,11 +185,11 @@
   <main id="main" class="main">
 
     <div class="pagetitle">
-      <h1>Charts</h1>
+      <h1>Grafici</h1>
       <nav>
         <ol class="breadcrumb">
           <li class="breadcrumb-item"><a href="/">Home</a></li>  
-          <li class="breadcrumb-item active">Charts</li>
+          <li class="breadcrumb-item active">Grafici</li>
         </ol>
       </nav>
     </div><!-- End Page Title -->
@@ -259,8 +207,7 @@
 
 
                 <div class="card-body">
-                  <h5 class="card-title">Charts <span><br><br>Select a politician/politicial group, channel or program of interest <br> 
-                    and from the menu select a chart to analyze the data</span></h5>
+                  <h5 class="card-title">Descrizione <span><br><br>*inserire descrizione*</span></h5>
 
                     <div id="barChart2" style="width: 100%; height:800px; display: none;"></div>
                     <div id="barChart3" style="width: 100%; height:600px; display: none;"></div>
@@ -280,10 +227,10 @@
                       <table id="table" class="display" style="width:100%;">
                         <thead>
                           <tr>
-                            <th>Channel</th>
-                            <th>Program</th>
-                            <th>Topic</th>
-                            <th>Duration</th>
+                            <th>Canale</th>
+                            <th>Programma</th>
+                            <th>Argomento</th>
+                            <th>Durata</th>
                           </tr>
                         </thead>
                       </table>

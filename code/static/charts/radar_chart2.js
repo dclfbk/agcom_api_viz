@@ -92,7 +92,7 @@ async function radarChart2() {
   } else {
     const url =
       t +
-      selected_channel +
+      encodeURIComponent(selected_channel) +
       "?start_date_=" +
       start_date.value.replace(/-/g, "%2F") +
       "&end_date_=" +
