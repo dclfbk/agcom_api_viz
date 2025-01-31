@@ -13,31 +13,73 @@ import datetime as dt
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
+import boto3
 import polars as pl
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+import io
 warnings.filterwarnings('ignore')
 
+import psutil
+#import os
 
-data = pl.read_parquet(".." + os.sep + "docs"  + os.sep +  "data" + os.sep + "agcomdata.parquet")
-data = data.with_columns((pl.col("name") + " " + pl.col("lastname")).alias("fullname"))
+#process = psutil.Process(os.getpid())  # Ottiene il processo attuale
+#mem_usage = process.memory_info().rss / (1024 * 1024)  # Converti in MB
+#print(f"Memoria usata dal processo: {mem_usage:.2f} MB")
 
-data = data.with_columns(
-    pl.col('kind').map_dict({'Parola': 'speech', 'Notizia': 'news'}).alias('kind')
-)
+# Configura le variabili d'ambiente per le credenziali AWS
+AWS_ACCESS_KEY = "AKIA3CMCCHE4HZCYTAF5"
+AWS_SECRET_KEY = "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"
+REGION_NAME = 'eu-north-1'
+BUCKET_NAME = 'agcom-parquet'
+S3_FILE_PATH = 'agcomdata.parquet'  # percorso del file in S3
 
-start_date = data.select('day').min().to_series()[0].strftime('%Y/%m/%d')
-end_date = data.select('day').max().to_series()[0].strftime('%Y/%m/%d')
+
+def read_parquet_from_s3():
+    try:
+        # Crea client S3
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=AWS_ACCESS_KEY,
+            aws_secret_access_key=AWS_SECRET_KEY,
+            region_name=REGION_NAME
+        )
+
+        # Scarica il file in memoria
+        response = s3_client.get_object(Bucket=BUCKET_NAME, Key=S3_FILE_PATH)
+        file_stream = io.BytesIO(response['Body'].read())
+
+        # Legge come LazyFrame
+        return pl.scan_parquet(file_stream)
+
+    except (NoCredentialsError, PartialCredentialsError):
+        raise HTTPException(status_code=403, detail="AWS credentials error")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading from S3: {e}")
+
+# Caricamento Lazy dei dati
+data = read_parquet_from_s3()
+
+# Aggiunge la colonna fullname e modifica "kind"
+data = data.with_columns([
+    (pl.col("name") + " " + pl.col("lastname")).alias("fullname"),
+    pl.col("kind").replace({"Parola": "speech", "Notizia": "news"}).alias("kind")
+])
+
+politicians = data.filter(pl.col("name") != "Soggetto collettivo")
+politicians_list = politicians.select("fullname").unique().collect().to_series().to_list()
+
+political_groups = data.filter(pl.col("name") == "Soggetto collettivo")
+political_groups_list = political_groups.select('lastname').unique().collect().to_series().to_list()
+
+start_date = data.select(pl.min("day")).collect().to_series()[0].strftime('%Y/%m/%d')
+end_date = data.select(pl.max("day")).collect().to_series()[0].strftime('%Y/%m/%d')
 
 kind = ["speech", "news", "both"]
 
-politicians = data.filter(pl.col("name") != "Soggetto collettivo")
-politicians_list = politicians.select('fullname').unique().to_series().to_list()
-political_groups = data.filter(pl.col("name") == "Soggetto collettivo")
-political_groups_list = political_groups.select('lastname').unique().to_series().to_list()
-
-channels = data.select('channel').unique().to_series().to_list()
-programs = data.select('program').unique().to_series().to_list()
-affiliations = data.select('affiliation').unique().to_series().to_list()
-topics = data.select('topic').unique().to_series().to_list()
+channels = data.select("channel").unique().collect().to_series().to_list()
+programs = data.select('program').unique().collect().to_series().to_list()
+affiliations = data.select('affiliation').unique().collect().to_series().to_list()
+topics = data.select('topic').unique().collect().to_series().to_list()
 
 # -------------------------------------------------------
 
@@ -67,7 +109,7 @@ def filter_data(data_, start_date_, end_date_, kind_):
     if kind_ != "both":
         filtered_data = filtered_data.filter(pl.col("kind") == kind_)
 
-    return filtered_data
+    return filtered_data.collect()
 
 # -------------------------------------------------------
 
@@ -203,7 +245,7 @@ async def get_channels(
     Return all channels
     """
 
-    channels_ = data.select('channel').unique().to_series().to_list()
+    channels_ = data.select('channel').unique().collect().to_series().to_list()
     channels_.sort()
 
     start = (page - 1) * page_size
@@ -230,7 +272,7 @@ async def get_programs(
             raise HTTPException(status_code=400, detail="Invalid channel")
         filtered_data = filtered_data.filter(pl.col('channel') == channel_)
 
-    programs_ = filtered_data.select('program').unique().to_series().to_list()
+    programs_ = filtered_data.select('program').unique().collect().to_series().to_list()
     programs_.sort()
 
     start = (page - 1) * page_size
@@ -257,7 +299,7 @@ async def get_affiliations(
             raise HTTPException(status_code=400, detail="Invalid politician")
         filtered_data = filtered_data.filter(pl.col('fullname') == politician_)
 
-    affiliations_ = filtered_data.select('affiliation').unique().to_series().to_list()
+    affiliations_ = filtered_data.select('affiliation').unique().collect().to_series().to_list()
     affiliations_.sort()
 
     start = (page - 1) * page_size
@@ -277,7 +319,7 @@ async def get_topics(
     Return all topics
     """
 
-    topics_ = data.select('topic').unique().to_series().to_list()
+    topics_ = data.select('topic').unique().collect().to_series().to_list()
     topics_.sort()
 
     start = (page - 1) * page_size
@@ -531,7 +573,7 @@ async def get_politicians_affiliation(
     Return how many politicians participate (have participated) in an affiliation
     """
     politicians_affiliation = politicians.filter(pl.col('affiliation') == name)
-    final_list = politicians_affiliation.select('fullname').unique().to_series().to_list()
+    final_list = politicians_affiliation.select('fullname').unique().collect().to_series().to_list()
 
     return { "affiliation": name, "politicians": final_list }
 
@@ -545,7 +587,7 @@ async def get_affiliations_politician(
     """
 
     affiliations_politician = politicians.filter(pl.col('fullname') == name)
-    final_list = affiliations_politician.select('affiliation').unique().to_series().to_list()
+    final_list = affiliations_politician.select('affiliation').unique().collect().to_series().to_list()
 
     return { "politician": name, "affiliations": final_list}
 
@@ -599,8 +641,8 @@ async def get_dates():
     """
     Return the first and last date of the dataset
     """
-    start_date_ = data.select('day').min().to_series()[0].strftime('%Y-%m-%d')
-    end_date_ = data.select('day').max().to_series()[0].strftime('%Y-%m-%d')
+    start_date_ = data.select('day').min().collect().to_series()[0].strftime('%Y-%m-%d')
+    end_date_ = data.select('day').max().collect().to_series()[0].strftime('%Y-%m-%d')
 
     return { "first_date": start_date_, "end_date": end_date_}
 
@@ -1661,3 +1703,7 @@ async def get_program_political_groups(
     sorted_list = sorted(final_list, key=lambda x: x['minutes'], reverse=True)
 
     return { "program": program, "pol": sorted_list[:n_pol] }
+
+process = psutil.Process(os.getpid())  # Ottiene il processo attuale
+mem_usage = process.memory_info().rss / (1024 * 1024)  # Converti in MB
+print(f"Memoria finale: {mem_usage:.2f} MB")
