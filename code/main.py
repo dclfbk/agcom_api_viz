@@ -7,6 +7,7 @@ Date: 2024-07-13
 """
 
 from memory_profiler import profile
+import sys
 import os
 import warnings
 from datetime import datetime
@@ -183,7 +184,7 @@ async def get_politicians(
     end_date_: str = Query(default=end_date, description="End date"),
     kind_: str = Query(default="both", description="Type of data", enum=kind),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=500, description="Page size")
+    page_size: int = Query(default=15000, description="Page size")
 ):
     """
     Return all politicians with pagination
@@ -213,7 +214,7 @@ async def get_political_groups(
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=20, description="Page size")
+    page_size: int = Query(default=15000, description="Page size")
 ):
     """
     Return all political groups
@@ -240,7 +241,7 @@ async def get_political_groups(
 @app.get("/v1/channels")
 async def get_channels(
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=3, description="Page size")
+    page_size: int = Query(default=15000, description="Page size")
 ):
     """
     Return all channels
@@ -260,7 +261,7 @@ async def get_channels(
 @app.get("/v1/programs")
 async def get_programs(
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=50, description="Page size"),
+    page_size: int = Query(default=15000, description="Page size"),
     channel_: str = Query(default = "all", description="Channel")
 ):
     """
@@ -287,7 +288,7 @@ async def get_programs(
 @app.get("/v1/affiliations")
 async def get_affiliations(
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=10, description="Page size"),
+    page_size: int = Query(default=15000, description="Page size"),
     politician_: str = Query(default = "all", description="Politician")
 ):
     """
@@ -314,7 +315,7 @@ async def get_affiliations(
 @app.get("/v1/topics")
 async def get_topics(
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=3, description="Page size")
+    page_size: int = Query(default=15000, description="Page size")
 ):
     """
     Return all topics
@@ -343,7 +344,7 @@ async def get_politician_topics(
     program_: str = Query(default = "all", description="Program"),
     topic_: str = Query(default = "all", description="Topic"),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=1, description="Page size")
+    page_size: int = Query(default=100, description="Page size")
 ):
     """
     Return how much a politician talked about all the possible topics
@@ -402,7 +403,7 @@ async def get_political_group_topics(
     program_: str = Query(default = "all", description="Program"),
     topic_: str = Query(default = "all", description="Topic"),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=1, description="Page size")
+    page_size: int = Query(default=100, description="Page size")
 ):
     """
     Return how much a political group talked about all the possible topics 
@@ -458,7 +459,7 @@ async def get_politician_channels(
     program_: str = Query(default = "all", description="Program"),
     topic_: str = Query(default = "all", description="Topic"),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=1, description="Page size")
+    page_size: int = Query(default=100, description="Page size")
 ):
     """
     Return how much a politician talked in a specific channel
@@ -519,7 +520,7 @@ async def get_political_group_channels(
     program_: str = Query(default = "all", description="Program"),
     topic_: str = Query(default = "all", description="Topic"),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=1, description="Page size")
+    page_size: int = Query(default=100, description="Page size")
 ):
     """
     Return how much a political group talked in a specific channel
@@ -775,6 +776,7 @@ async def get_interventions_political_group_per_year(
 # -------------------------------------------------------
 
 @app.get("/v1/interventions-politician-per-day/{name}")
+@profile
 async def get_interventions_politician_per_day(
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -785,7 +787,7 @@ async def get_interventions_politician_per_day(
     program_: str = Query(default = "all", description="Program"),
     topic_: str = Query(default = "all", description="Topic"),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=1, description="Page size")
+    page_size: int = Query(default=10, description="Page size")
 ):
     """
     Return how much a politician has intervened in tv per day
@@ -864,7 +866,7 @@ async def get_interventions_political_group_per_day(
     program_: str = Query(default = "all", description="Program"),
     topic_: str = Query(default = "all", description="Topic"),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=1, description="Page size")
+    page_size: int = Query(default=10, description="Page size")
 ):
     """
     Return how much a political group has intervened in tv per day
@@ -1311,9 +1313,9 @@ async def get_channels_programs_topics_politician(
     program_: str = Query(default="all", description="Program"),
     topic_: str = Query(default="all", description="Topic"),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=1, description="Page size"),
+    page_size: int = Query(default=10000, description="Page size"),
     program_page: int = Query(default=1, description="Program page number"),
-    program_page_size: int = Query(default=1, description="Program page size")
+    program_page_size: int = Query(default=10000, description="Program page size")
 ):
     """
     Return for a politician, all the channels he spoke to, in which programs, 
@@ -1409,9 +1411,9 @@ async def get_channels_programs_topics_political_group(
     program_: str = Query(default="all", description="Program"),
     topic_: str = Query(default="all", description="Topic"),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=1, description="Page size"),
+    page_size: int = Query(default=10000, description="Page size"),
     program_page: int = Query(default=1, description="Program page number"),
-    program_page_size: int = Query(default=1, description="Program page size")
+    program_page_size: int = Query(default=10000, description="Program page size")
 ):
     """
     Return for a political group, all the channels they spoke to, in which programs, 
