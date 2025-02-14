@@ -7,6 +7,7 @@ Date: 2024-07-13
 """
 
 from memory_profiler import profile
+from pympler import asizeof
 import sys
 import os
 import warnings
@@ -241,13 +242,20 @@ async def get_political_groups(
 @app.get("/v1/channels")
 async def get_channels(
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=15000, description="Page size")
+    page_size: int = Query(default=15000, description="Page size"),
+    program_: str = Query(default = "all", description="Program")
 ):
     """
     Return all channels
     """
+    filtered_data = data
 
-    channels_ = data.select('channel').unique().collect().to_series().to_list()
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        filtered_data = filtered_data.filter(pl.col('program') == program_)
+
+    channels_ = filtered_data.select('channel').unique().collect().to_series().to_list()
     channels_.sort()
 
     start = (page - 1) * page_size
@@ -574,6 +582,8 @@ async def get_politicians_affiliation(
     """
     Return how many politicians participate (have participated) in an affiliation
     """
+    if name not in affiliations:
+        raise HTTPException(status_code=400, detail="Invalid affiliation")
     politicians_affiliation = politicians.filter(pl.col('affiliation') == name)
     final_list = politicians_affiliation.select('fullname').unique().collect().to_series().to_list()
 
@@ -587,7 +597,8 @@ async def get_affiliations_politician(
     """
     Return how many affiliations a politician have participated in
     """
-
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Invalid politician")
     affiliations_politician = politicians.filter(pl.col('fullname') == name)
     final_list = affiliations_politician.select('affiliation').unique().collect().to_series().to_list()
 
@@ -787,7 +798,7 @@ async def get_interventions_politician_per_day(
     program_: str = Query(default = "all", description="Program"),
     topic_: str = Query(default = "all", description="Topic"),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=10, description="Page size")
+    page_size: int = Query(default=1, description="Page size")
 ):
     """
     Return how much a politician has intervened in tv per day
@@ -819,41 +830,19 @@ async def get_interventions_politician_per_day(
         filtered_data = filtered_data.filter(pl.col('topic') == topic_)
 
     interventions_politician = filter_data(filtered_data, start_date_, end_date_, kind_)
-    start = (page - 1) * page_size
-    end = start + page_size
 
-    begin_date = dt.date(int(start_date_.split('/')[0]),
-                         int(start_date_.split('/')[1]),
-                         int(start_date_.split('/')[2]))
-    b = begin_date
-    final_date = dt.date(int(end_date_.split('/')[0]),
-                         int(end_date_.split('/')[1]),
-                         int(end_date_.split('/')[2]))
-    day = dt.timedelta(1)
-    year = begin_date.year
-    interventions = []
-    i = []
-    max_value = 0
+    batch_size = 5000
+    calendar_list = []
 
-    while begin_date != final_date:
-        if begin_date.year != year:
-            interventions.append(i)
-            year = year + 1
-            for j in i:
-                if max_value < j[1]:
-                    max_value = j[1]
-            i = []
-        else:
-            d = datetime.strptime(str(begin_date), "%Y-%m-%d")
-            temp = interventions_politician.filter(pl.col("day") == d)
-            i.append([begin_date, temp.select(pl.len()).collect().item()])
-            begin_date = begin_date + day
-    interventions.append(i)
+    batch_index = 0
+    batch = interventions_politician.slice(batch_index, batch_size).collect()
 
-    paginated_list = interventions[start:end]
+    while batch.height != 0:
+        calendar_list.extend(batch.select("day").to_series().to_list())
+        batch_index += batch_size
+        batch = interventions_politician.slice(batch_index, batch_size).collect()
 
-    return { "politician": name,"interventions": paginated_list, "max_value": max_value,
-            "begin year": b.year, "final year": final_date.year}
+    return {}
 
 
 @app.get("/v1/interventions-political-group-per-day/{name}")
