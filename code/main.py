@@ -13,7 +13,7 @@ import os
 import warnings
 from datetime import datetime
 import datetime as dt
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 import boto3
@@ -398,7 +398,7 @@ async def get_politician_topics(
 
     paginated_list = final_list[start:end]
 
-    return { "politician": name, "topics": paginated_list }
+    return { "politician": name, "topics": paginated_list, "page_size": page_size }
 
 
 @app.get("/v1/political-group-topics/{name}")
@@ -452,7 +452,7 @@ async def get_political_group_topics(
 
     paginated_list = final_list[start:end]
 
-    return { "political group": name, "topics": paginated_list }
+    return { "political group": name, "topics": paginated_list, "page_size": page_size }
 
 # -------------------------------------------------------
 
@@ -515,7 +515,7 @@ async def get_politician_channels(
 
     paginated_list = final_list[start:end]
 
-    return { "politician": name, "channels": paginated_list }
+    return { "politician": name, "channels": paginated_list, "page_size": page_size }
 
 
 @app.get("/v1/political-group-channels/{name}")
@@ -571,7 +571,7 @@ async def get_political_group_channels(
 
     paginated_list = final_list[start:end]
 
-    return { "political group": name, "channels": paginated_list }
+    return { "political group": name, "channels": paginated_list, "page_size": page_size }
 
 # -------------------------------------------------------
 
@@ -1040,6 +1040,7 @@ async def get_political_group_channels_programs(
 async def get_channel_programs_politician(
     name: str,
     channel: str,
+    request: Request,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
@@ -1081,10 +1082,14 @@ async def get_channel_programs_politician(
     final_list = []
 
     for p in programs_:
+        if await request.is_disconnected():  # Controlla se il client ha chiuso la connessione
+            raise HTTPException(status_code=499, detail="Client Disconnected")
         single_program = politician_channels.filter(pl.col('program') == p)
         topics_programs = single_program.select('topic').unique().collect().to_series().to_list()
         temp = []
         for t in topics_programs:
+            if await request.is_disconnected():  # Controlla se il client ha chiuso la connessione
+                raise HTTPException(status_code=499, detail="Client Disconnected")
             single_topic = single_program.filter(pl.col('topic') == t)
             t1 = single_topic.select('topic').unique().collect().to_series().to_list()
             total = single_topic.select('duration').sum().collect().to_series().to_list()
@@ -1099,6 +1104,7 @@ async def get_channel_programs_politician(
 async def get_channel_programs_political_group(
     name: str,
     channel: str,
+    request: Request,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
@@ -1135,10 +1141,14 @@ async def get_channel_programs_political_group(
     final_list = []
 
     for p in programs_:
+        if await request.is_disconnected():  # Controlla se il client ha chiuso la connessione
+            raise HTTPException(status_code=499, detail="Client Disconnected")
         single_program = polgroup_channels.filter(pl.col('program') == p)
         topics_programs = single_program.select('topic').unique().collect().to_series().to_list()
         temp = []
         for t in topics_programs:
+            if await request.is_disconnected():  # Controlla se il client ha chiuso la connessione
+                raise HTTPException(status_code=499, detail="Client Disconnected")
             single_topic = single_program.filter(pl.col('topic') == t)
             t1 = single_topic.select('topic').unique().collect().to_series().to_list()
             total = single_topic.select('duration').sum().collect().to_series().to_list()
