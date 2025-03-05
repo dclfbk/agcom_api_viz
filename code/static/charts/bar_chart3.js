@@ -1,4 +1,5 @@
 async function barChart3() {
+  select_pol_length = 1;
   controller.abort();
   while(functionIsRunning){
     await new Promise((resolve) => setTimeout(resolve, 50));

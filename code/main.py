@@ -185,7 +185,7 @@ async def get_politicians(
     end_date_: str = Query(default=end_date, description="End date"),
     kind_: str = Query(default="both", description="Type of data", enum=kind),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=15000, description="Page size")
+    page_size: int = Query(default=5000, description="Page size")
 ):
     """
     Return all politicians with pagination
@@ -205,7 +205,8 @@ async def get_politicians(
 
     return {
         "total": len(politicians_),
-        "politicians": paginated_politicians
+        "politicians": paginated_politicians,
+        "page_size": page_size
     }
 
 
@@ -215,7 +216,7 @@ async def get_political_groups(
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=15000, description="Page size")
+    page_size: int = Query(default=5000, description="Page size")
 ):
     """
     Return all political groups
@@ -235,14 +236,15 @@ async def get_political_groups(
 
     return {
         "total": len(political_groups_),
-        "political groups": paginated_political_groups
+        "political_groups": paginated_political_groups,
+        "page_size": page_size
     }
 
 
 @app.get("/v1/channels")
 async def get_channels(
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=15000, description="Page size"),
+    page_size: int = Query(default=5000, description="Page size"),
     program_: str = Query(default = "all", description="Program")
 ):
     """
@@ -263,13 +265,13 @@ async def get_channels(
 
     paginated_channels = channels_[start:end]
 
-    return { "channels": paginated_channels }
+    return { "channels": paginated_channels, "page_size": page_size }
 
 
 @app.get("/v1/programs")
 async def get_programs(
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=15000, description="Page size"),
+    page_size: int = Query(default=5000, description="Page size"),
     channel_: str = Query(default = "all", description="Channel")
 ):
     """
@@ -290,13 +292,13 @@ async def get_programs(
 
     paginated_programs = programs_[start:end]
 
-    return { "programs": paginated_programs }
+    return { "programs": paginated_programs, "page_size": page_size }
 
 
 @app.get("/v1/affiliations")
 async def get_affiliations(
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=15000, description="Page size"),
+    page_size: int = Query(default=5000, description="Page size"),
     politician_: str = Query(default = "all", description="Politician")
 ):
     """
@@ -317,13 +319,13 @@ async def get_affiliations(
 
     paginated_affiliations = affiliations_[start:end]
 
-    return { "affiliations": paginated_affiliations }
+    return { "affiliations": paginated_affiliations, "page_size": page_size }
 
 
 @app.get("/v1/topics")
 async def get_topics(
     page: int = Query(default=1, description="Page number"),
-    page_size: int = Query(default=15000, description="Page size")
+    page_size: int = Query(default=5000, description="Page size")
 ):
     """
     Return all topics
@@ -337,7 +339,7 @@ async def get_topics(
 
     paginated_topics_ = topics_[start:end]
 
-    return { "topics": paginated_topics_ }
+    return { "topics": paginated_topics_, "page_size": page_size }
 
 # -------------------------------------------------------
 

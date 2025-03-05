@@ -1,4 +1,5 @@
 async function lineChart() {
+  select_pol_length = 4;
   controller.abort();
   while(functionIsRunning){
     await new Promise((resolve) => setTimeout(resolve, 50));

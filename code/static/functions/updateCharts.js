@@ -28,6 +28,7 @@ async function updateCharts(tab, still_running) {
   }
 }
 
+//function to limit politicians selection to 1
 async function selectPolLength1() {
   $("#select_pol").select2({
     maximumSelectionLength: 1,
@@ -38,12 +39,15 @@ async function selectPolLength1() {
       },
     },
   });
+  //if more politicians are selected, remember only the first one
   if ($("#select_pol").val().length > 1) {
     temp = $("#select_pol").val()[0];
     $("#select_pol").val([temp]).trigger("change");
   }
 }
 
+
+//function to limit politicians selection to 4
 async function selectPolLength4() {
   $("#select_pol").select2({
     maximumSelectionLength: 4,
@@ -54,6 +58,7 @@ async function selectPolLength4() {
       },
     },
   });
+  //if more politicians are selected, remember only the first four
   if ($("#select_pol").val().length > 4) {
     temp = [
       $("#select_pol").val()[0],
@@ -65,6 +70,8 @@ async function selectPolLength4() {
   }
 }
 
+
+//function to limit politicians selection to 10
 async function selectPolLength10() {
   $("#select_pol").select2({
     maximumSelectionLength: 10,
