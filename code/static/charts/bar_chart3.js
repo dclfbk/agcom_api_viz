@@ -9,6 +9,7 @@ async function barChart3() {
   }
   functionIsRunning = true;
   controller = new AbortController();
+  selectPolLength1();
   var bC = document.getElementById("barChart3");
   bC.style.display = "block";
   document.getElementById("barChart2").style.display = "none";

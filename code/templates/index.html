@@ -80,17 +80,17 @@
         </a>
         <ul id="bar-charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
           <li>
-            <a href="#" onclick="barChart3(), selectPolLength1()">
+            <a href="#" onclick="barChart3()">
               <i class="bi-bar-chart-fill"></i><span>Grafico a Barre</span>
             </a>
           </li>
           <li>
-            <a href="#" onclick="calendarChart(), selectPolLength1()">
+            <a href="#" onclick="calendarChart()">
               <i class="bi-calendar4-week"></i><span>Grafico a Calendario</span>
             </a>
           </li>
           <li>
-            <a href="#" onclick="table(tab, still_running), selectPolLength1()">
+            <a href="#" onclick="table(tab, still_running)">
               <i class="bi-table"></i><span>Tabella</span>
             </a>
           </li>
@@ -103,22 +103,22 @@
         </a>
         <ul id="line-charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
           <li>
-            <a href="#" onclick="barChart2(), selectPolLength4()">
+            <a href="#" onclick="barChart2()">
               <i class="bi-bar-chart-fill"></i><span>Grafico a Barre</span>
             </a>
           </li>
           <li>
-            <a href="#" onclick="lineChart(), selectPolLength4()">
+            <a href="#" onclick="lineChart()">
               <i class="bi-graph-up"></i><span>Grafico a Linee 1</span>
             </a>
           </li>
           <li>
-            <a href="#" onclick="lineChart2(), selectPolLength4()">
+            <a href="#" onclick="lineChart2()">
               <i class="bi-graph-up"></i><span>Grafico a Linee 2</span>
             </a>
           </li>
           <li>
-            <a href="#" onclick="radarChart(), selectPolLength4()">
+            <a href="#" onclick="radarChart()">
               <i class="bi-hexagon"></i><span>Grafico Radar</span>
             </a>
           </li>
@@ -132,11 +132,11 @@
         </a>
         <ul id="radar-charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
           <li>
-            <a href="#" onclick="barPieChart(), selectPolLength4()">
+            <a href="#" onclick="barPieChart()">
               <i class="bi-bar-chart-fill"></i><span>Grafico a Barre</span>
             </a>
           </li>
-            <a href="#" onclick="radarChart2(), selectPolLength10()">
+            <a href="#" onclick="radarChart2()">
               <i class="bi-hexagon"></i><span>Grafico Radar</span>
             </a>
           </li>
@@ -149,7 +149,7 @@
         </a>
         <ul id="other-charts-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
           <li>
-            <a href="#" onclick="radarChart3(), selectPolLength10()">
+            <a href="#" onclick="radarChart3()">
               <i class="bi-hexagon"></i><span>Grafico Radar</span>
             </a>
           </li>
@@ -258,34 +258,34 @@
               <h5 class="card-title">SELEZIONE</span></h5>
               <div class="formPolDiv" style="padding-top: 10px;">
                 <form id="form_pol">
-                  <input type="radio" id="politician" value="politician" name="choose_pol" onclick="handleOptionChange(this), fetchAffiliations()">
+                  <input type="radio" id="politician" value="politician" name="choose_pol" onclick="handleOptionChange(this)">
                   <label for="politician">Politici</label><br>
                   <input type="radio" id="political_group" value="political_group" name="choose_pol" onclick="handleOptionChange(this)">
                   <label for="political_group">Partiti</label>
                 </form>
               </div>
               <div class="searchPolDiv" style="padding-top: 10px;">
-                <select id="select_pol" style="width: 100%;" multiple="multiple" onchange="updateCharts(tab, still_running), fetchAffiliations()">
+                <select id="select_pol" style="width: 100%;" multiple="multiple">
                   <option></option>
                 </select>
               </div>
               <div class="searchChannelDiv" style="padding-top: 10px;">
-                <select id="select_channels" style="width: 100%;" multiple="multiple" onchange="updateCharts(tab, still_running), fetchPrograms()">
+                <select id="select_channels" style="width: 100%;" multiple="multiple">
                   <option></option>
                 </select>
               </div>
               <div class="searchProgramlDiv" style="padding-top: 10px;">
-                <select id="select_programs" style="width: 100%;" multiple="multiple" onchange="updateCharts(tab, still_running), fetchChannels()">
+                <select id="select_programs" style="width: 100%;" multiple="multiple">
                   <option></option>
                 </select>
               </div>
               <div class="searchTopiclDiv" style="padding-top: 10px;">
-                <select id="select_topics" style="width: 100%;" multiple="multiple" onchange="updateCharts(tab, still_running)">
+                <select id="select_topics" style="width: 100%;" multiple="multiple">
                   <option></option>
                 </select>
               </div>
               <div class="searchAffiliationlDiv" style="padding-top: 10px;">
-                <select id="select_affiliations" style="width: 100%;" multiple="multiple" onchange="updateCharts(tab, still_running), updatePoliticians()">
+                <select id="select_affiliations" style="width: 100%;" multiple="multiple">
                   <option></option>
                 </select>
               </div>
@@ -355,22 +355,48 @@
                 return "Seleziona un opzione tra partiti e politici";
             }
         }
+      }).on('select2:select', () => {
+        updateCharts(tab, still_running);
+        fetchAffiliations();
+      }).on('select2:unselect', () => {
+        updateCharts(tab, still_running);
+        fetchAffiliations();
       });
+
 
       $('#select_channels').select2({
         placeholder: 'Cerca canale',
         maximumSelectionLength: 1
+      }).on('select2:select', () => {
+        updateCharts(tab, still_running);
+        fetchPrograms();
+      }).on('select2:unselect', () => {
+        updateCharts(tab, still_running);
+        fetchPrograms();
       });
+
 
       $('#select_programs').select2({
         placeholder: 'Cerca programma',
         maximumSelectionLength: 1
+      }).on('select2:select', () => {
+        updateCharts(tab, still_running);
+        fetchChannels();
+      }).on('select2:unselect', () => {
+        updateCharts(tab, still_running);
+        fetchChannels();
       });
+
 
       $('#select_topics').select2({
         placeholder: 'Cerca argomento',
         maximumSelectionLength: 1,
+      }).on('select2:select', () => {
+        updateCharts(tab, still_running);
+      }).on('select2:unselect', () => {
+        updateCharts(tab, still_running);
       });
+
 
       $('#select_affiliations').select2({
         placeholder: 'Cerca partito',
@@ -380,6 +406,12 @@
                 return "Seleziona l'opzione politici per filtrare secondo partito";
             }
         }
+      }).on('select2:select', () => {
+        updateCharts(tab, still_running);
+        updatePoliticians();
+      }).on('select2:unselect', () => {
+        updateCharts(tab, still_running);
+        updatePoliticians();
       });
 
       //initializing selects

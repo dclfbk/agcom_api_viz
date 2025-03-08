@@ -30,6 +30,7 @@ async function handleOptionChange(radio) {                      // initializing 
         if (data["politicians"].length < data["page_size"]) break;
         i++;
       }
+      fetchAffiliations();
     }
 
   } else if (radio.value == "political_group") {                //else if political group was selected
@@ -58,14 +59,7 @@ async function handleOptionChange(radio) {                      // initializing 
 }
 
 
-let isUpdating = false;                                         //variable to check if either channels or programs select is updating
-let firstInitialization = [false, false];                       //variable to check if first initialization was done
-
 async function fetchChannels() {
-  if (isUpdating && firstInitialization[0]) return;             //if first initialization was done and fetchPrograms() is running, exit 
-  firstInitialization[0] = true;
-  isUpdating = true;
-
   const select_channels = $('#select_channels');
   const old_value = select_channels.val()[0];                   //remember eventual channel that was selected
   select_channels.prop('disabled', true).select2({              //empty the select and block it while loading
@@ -99,23 +93,12 @@ async function fetchChannels() {
   });
 
   if (old_value != undefined){                                  //if there was a channel selected
-    select_channels.onchange = null;                            //when select is modified, no functions are called
-    select_channels.value = old_value;                          //save old value in the select
-    select_channels.val(old_value).trigger('change');           //update the changes
-    select_channels.onchange = function() {                     //restore functions to call when select is modified
-        updateCharts(tab, still_running);
-        fetchPrograms();
-    };
+    select_channels.val(old_value).trigger('change');           //re-save it in the select
   }
-
-  isUpdating = false;                                           //fetchChannels() finished, fetchPrograms() can run
 }
 
-async function fetchPrograms() {
-  if (isUpdating && firstInitialization[1]) return;             //if first initialization was done and fetchChannels() is running, exit 
-  firstInitialization[1] = true;
-  isUpdating = true;
 
+async function fetchPrograms() {
   const select_programs = $('#select_programs');
   const old_value = select_programs.val()[0];                   //remember eventual program that was selected
   select_programs.prop('disabled', true).select2({              //empty the select and block it while loading
@@ -149,16 +132,8 @@ async function fetchPrograms() {
   });
 
   if (old_value != undefined){                                  //if there was a program selected
-    select_programs.onchange = null;                            //when select is modified, no functions are called
-    select_programs.value = old_value;                          //save old value in the select
-    select_programs.val(old_value).trigger('change');           //update the changes
-    select_programs.onchange = function() {                     //restore functions to call when select is modified
-        updateCharts(tab, still_running);
-        fetchChannels();
-    };
+    select_programs.val(old_value).trigger('change');           //re-save it in the select
   }
-
-  isUpdating = false;                                           //fetchPrograms() finished, fetchChannels() can run
 }
 
 
@@ -187,6 +162,7 @@ async function fetchTopics() {
   });
 }
 
+
 async function fetchAffiliations() {
   const select_affiliations = $('#select_affiliations');
   const old_value = select_affiliations.val()[0];               //remember eventual affiliation that was selected
@@ -203,7 +179,7 @@ async function fetchAffiliations() {
     });
     select_affiliations.empty();
 
-    var selected_politician = "";                               //if a politician is selected, use it for filtering programs in the url
+    var selected_politician = "";                               //if a politician is selected, use it for filtering affiliations in the url
     if (
       $("#select_pol").val()[0] != undefined &&
       $("#select_pol").val()[0] != ""
@@ -212,9 +188,16 @@ async function fetchAffiliations() {
     }
 
     var i = 1;
-    while (true) {                                              //retrieve programs
+    while (true) {                                              //retrieve affiliations
       var url = "/v1/affiliations" + `?page=${i}` + selected_politician;
       const data = await fetchData(url);
+      if (data === null) {
+        select_affiliations.prop('disabled', false).select2({
+          placeholder: 'Cerca partito'
+        });
+        select_affiliations.empty();
+        return;
+      }
       data["affiliations"].forEach((valore) => {
         const option = new Option(valore, valore, false, false);
         select_affiliations.append(option);
@@ -223,22 +206,17 @@ async function fetchAffiliations() {
       i++;
     }
 
-    select_affiliations.prop('disabled', false).select2({       //re-enable select programs
+    select_affiliations.prop('disabled', false).select2({       //re-enable select affiliations
       placeholder: 'Cerca partito',
       maximumSelectionLength: 1
     });
 
     if (old_value != undefined){                                //if there was an affiliation selected
-      select_affiliations.onchange = null;                      //when select is modified, no functions are called
-      select_affiliations.value = old_value;                    //save old value in the select
-      select_affiliations.val(old_value).trigger('change');     //update the changes
-      select_affiliations.onchange = function() {               //restore functions to call when select is modified
-          updateCharts(tab, still_running);
-          updatePoliticians();
-      };
+      select_affiliations.val(old_value).trigger('change');     //re-save it in the select
     }
   }
 }
+
 
 async function updatePoliticians() {
   const select_pol = $("#select_pol");
@@ -248,13 +226,7 @@ async function updatePoliticians() {
   const old_value = select_pol.val()[0];
   handleOptionChange(rad).then(() => {                          //call handleOptionChange() function to update politicians
     if (old_value != undefined){                                //if there was an politician selected
-      select_pol.onchange = null;                               //when select is modified, no functions are called
-      select_pol.value = old_value;                             //save old value in the select
-      select_pol.val(old_value).trigger('change');              //update the changes
-      select_pol.onchange = function() {                        //restore functions to call when select is modified
-          updateCharts(tab, still_running);
-          fetchAffiliations();
-      };
+      select_pol.val(old_value).trigger('change');              //re-save it in the select
     }
   });
 }

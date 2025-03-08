@@ -29,8 +29,9 @@ async function updateCharts(tab, still_running) {
 }
 
 //function to limit politicians selection to 1
-async function selectPolLength1() {
-  $("#select_pol").select2({
+function selectPolLength1() {
+  const select_pol =  $('#select_pol');
+  select_pol.select2({
     maximumSelectionLength: 1,
     placeholder: "Cerca politico/partito",
     language: {
@@ -40,16 +41,18 @@ async function selectPolLength1() {
     },
   });
   //if more politicians are selected, remember only the first one
-  if ($("#select_pol").val().length > 1) {
-    temp = $("#select_pol").val()[0];
-    $("#select_pol").val([temp]).trigger("change");
+  if (select_pol.val().length > 1) {
+    const temp = select_pol.val()[0];
+    select_pol.val(temp).trigger('change');
+    fetchAffiliations();                                          //fetch affiliation of politician
   }
 }
 
 
 //function to limit politicians selection to 4
 async function selectPolLength4() {
-  $("#select_pol").select2({
+  const select_pol =  $('#select_pol');
+  select_pol.select2({
     maximumSelectionLength: 4,
     placeholder: "Cerca politico/partito",
     language: {
@@ -59,14 +62,14 @@ async function selectPolLength4() {
     },
   });
   //if more politicians are selected, remember only the first four
-  if ($("#select_pol").val().length > 4) {
-    temp = [
-      $("#select_pol").val()[0],
-      $("#select_pol").val()[1],
-      $("#select_pol").val()[2],
-      $("#select_pol").val()[3],
+  if (select_pol.val().length > 4) {
+    const temp = [
+      select_pol.val()[0],
+      select_pol.val()[1],
+      select_pol.val()[2],
+      select_pol.val()[3],
     ];
-    $("#select_pol").val(temp).trigger("change");
+    select_pol.val(temp).trigger('change');
   }
 }
 

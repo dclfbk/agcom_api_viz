@@ -9,6 +9,7 @@ async function lineChart() {
   }
   functionIsRunning = true;
   controller = new AbortController();
+  selectPolLength4();
   var lC = document.getElementById("lineChart");
   lC.style.display = "block";
   document.getElementById("barChart2").style.display = "none";
