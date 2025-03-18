@@ -134,7 +134,7 @@ async def get_politicians(
     kind_filter = "" if kind_ == "both" else f"AND kind = '{kind_}'"
 
     query = f"""
-        SELECT fullname
+        SELECT DISTINCT fullname
         FROM records
         WHERE name != 'Soggetto Collettivo' AND day >= %s AND day <= %s {kind_filter}
         GROUP BY fullname
@@ -153,6 +153,7 @@ async def get_politicians(
         "page_size": page_size
     }
 
+
 @app.get("/v1/political-groups")
 async def get_political_groups(
     start_date_: str = Query(default=start_date, description="Start date"),
@@ -170,7 +171,7 @@ async def get_political_groups(
     kind_filter = "" if kind_ == "both" else f"AND kind = '{kind_}'"
 
     query = f"""
-        SELECT lastname
+        SELECT DISTINCT lastname
         FROM records
         WHERE name = 'Soggetto Collettivo' AND day >= %s AND day <= %s {kind_filter}
         GROUP BY lastname
@@ -188,6 +189,7 @@ async def get_political_groups(
         "political_groups": political_groups_[start:end],
         "page_size": page_size
     }
+
 
 @app.get("/v1/channels")
 async def get_channels(
@@ -209,7 +211,7 @@ async def get_channels(
         filter = f"""WHERE program = '{program_}'"""
         
     query = f"""
-        SELECT channel
+        SELECT DISTINCT channel
         FROM records
         {filter}
         GROUP BY channel
@@ -223,6 +225,7 @@ async def get_channels(
     end = start + page_size
 
     return { "channels": channels_[start:end], "page_size": page_size }
+
 
 @app.get("/v1/programs")
 async def get_programs(
@@ -244,7 +247,7 @@ async def get_programs(
         filter = f"""WHERE channel = '{channel_}'"""
 
     query = f"""
-        SELECT program
+        SELECT DISTINCT program
         FROM records
         {filter}
         GROUP BY program
@@ -258,3 +261,201 @@ async def get_programs(
     end = start + page_size
 
     return { "programs": programs_[start:end], "page_size": page_size }
+
+
+@app.get("/v1/affiliations")
+async def get_affiliations(
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=5000, description="Page size"),
+    politician_: str = Query(default = "all", description="Politician")
+):
+    """
+    Return all affiliations
+    """
+    if page < 1 or page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+    
+    filter = ""
+
+    if politician_ != "all":
+        if politician_ not in politicians_list:
+            raise HTTPException(status_code=400, detail="Invalid politician")
+        filter = f"""WHERE fullname = '{politician_}'"""
+
+    query = f"""
+        SELECT DISTINCT affiliation
+        FROM records
+        {filter}
+        GROUP BY affiliation
+        ORDER BY affiliation
+    """
+
+    affiliations_ = query_postgresql(query)
+    affiliations_ = [k[0] for k in affiliations_]
+
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    return { "affiliations": affiliations_[start:end], "page_size": page_size }
+
+
+@app.get("/v1/topics")
+async def get_topics(
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=5000, description="Page size")
+):
+    """
+    Return all topics
+    """
+    if page < 1 or page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+
+    query = f"""
+        SELECT DISTINCT topic
+        FROM records
+        GROUP BY topic
+        ORDER BY topic
+    """
+
+    topics_ = query_postgresql(query)
+    topics_ = [k[0] for k in topics_]
+
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    return { "topics": topics_[start:end], "page_size": page_size }
+
+# -------------------------------------------------------
+
+@app.get("/v1/politician-topics/{name}")
+async def get_politician_topics(
+    name: str,
+    start_date_: str = Query(default=start_date),
+    end_date_: str = Query(default=end_date),
+    kind_: str = Query(default="both", enum=kind),
+    channel_: str = Query(default="all"),
+    affiliation_: str = Query(default="all"),
+    program_: str = Query(default="all"),
+    topic_: str = Query(default="all"),
+    page: int = Query(default=1),
+    page_size: int = Query(default=100)
+):
+    """
+    Return how much a politician talked about all the possible topics
+    """
+    if page < 1 or page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    params = [name]
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        conditions.append("channel = %s")
+        params.append(channel_)
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        conditions.append("affiliation = %s")
+        params.append(affiliation_)
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        conditions.append("program = %s")
+        params.append(program_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        conditions.append("topic = %s")
+        params.append(topic_)
+    if kind_ != "both":
+        conditions.append("kind = %s")
+        params.append(kind_)
+
+    condition_str = " AND ".join(conditions)
+
+    query = f"""
+        SELECT topic, SUM(duration), COUNT(*)
+        FROM records
+        WHERE {condition_str} AND day >= %s AND day <= %s
+        GROUP BY topic
+        ORDER BY topic
+    """
+    params.extend([start_date_, end_date_])
+
+    data = query_postgresql(query, params)
+    explicit_data = []
+    for d in data:
+        temp_topic = d[0]
+        temp_duration = d[1]
+        temp_interventions = d[2]
+        explicit_data.append({"topic": temp_topic, "minutes": temp_duration, "interventions": temp_interventions})
+
+    paginated_data = explicit_data[(page - 1) * page_size: page * page_size]
+
+    return {"politician": name, "topics": paginated_data, "page_size": page_size}
+
+
+@app.get("/v1/political-group-topics/{name}")
+async def get_political_group_topics(
+    name: str,
+    start_date_: str = Query(default=start_date),
+    end_date_: str = Query(default=end_date),
+    kind_: str = Query(default="both", enum=kind),
+    channel_: str = Query(default="all"),
+    program_: str = Query(default="all"),
+    topic_: str = Query(default="all"),
+    page: int = Query(default=1),
+    page_size: int = Query(default=100)
+):
+    """
+    Return how much a political group talked about all the possible topics 
+    """
+    if page < 1 or page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    params = [name]
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        conditions.append("channel = %s")
+        params.append(channel_)
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        conditions.append("program = %s")
+        params.append(program_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        conditions.append("topic = %s")
+        params.append(topic_)
+    if kind_ != "both":
+        conditions.append("kind = %s")
+        params.append(kind_)
+
+    condition_str = " AND ".join(conditions)
+
+    query = f"""
+        SELECT topic, SUM(duration), COUNT(*)
+        FROM records
+        WHERE {condition_str} AND day >= %s AND day <= %s
+        GROUP BY topic
+        ORDER BY topic
+    """
+    params.extend([start_date_, end_date_])
+
+    data = query_postgresql(query, params)
+    explicit_data = []
+    for d in data:
+        temp_topic = d[0]
+        temp_duration = d[1]
+        temp_interventions = d[2]
+        explicit_data.append({"topic": temp_topic, "minutes": temp_duration, "interventions": temp_interventions})
+
+    paginated_data = explicit_data[(page - 1) * page_size: page * page_size]
+
+    return {"political group": name, "topics": paginated_data, "page_size": page_size}
