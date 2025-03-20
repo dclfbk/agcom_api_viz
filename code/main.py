@@ -51,7 +51,7 @@ start_date, end_date = get_min_max_dates()
 kind = ["speech", "news", "both"]
 
 politicians_list = [k[0] for k in query_postgresql(f"""SELECT DISTINCT fullname FROM {TABLE_NAME} WHERE name != 'Soggetto Collettivo';""")]
-political_groups_list  = [k[0] for k in query_postgresql(f"""SELECT DISTINCT fullname FROM {TABLE_NAME} WHERE name = 'Soggetto Collettivo';""")]
+political_groups_list  = [k[0] for k in query_postgresql(f"""SELECT DISTINCT lastname FROM {TABLE_NAME} WHERE name = 'Soggetto Collettivo';""")]
 channels = [k[0] for k in query_postgresql(f"""SELECT DISTINCT channel FROM {TABLE_NAME};""")]
 programs = [k[0] for k in query_postgresql(f"""SELECT DISTINCT program FROM {TABLE_NAME};""")]
 affiliations = [k[0] for k in query_postgresql(f"""SELECT DISTINCT affiliation FROM {TABLE_NAME};""")]
@@ -135,8 +135,8 @@ async def get_politicians(
 
     query = f"""
         SELECT DISTINCT fullname
-        FROM records
-        WHERE name != 'Soggetto Collettivo' AND day >= %s AND day <= %s {kind_filter}
+        FROM {TABLE_NAME}
+        WHERE name != 'Soggetto Collettivo' AND day BETWEEN %s AND %s {kind_filter}
         GROUP BY fullname
         ORDER BY fullname
     """
@@ -172,8 +172,8 @@ async def get_political_groups(
 
     query = f"""
         SELECT DISTINCT lastname
-        FROM records
-        WHERE name = 'Soggetto Collettivo' AND day >= %s AND day <= %s {kind_filter}
+        FROM {TABLE_NAME}
+        WHERE name = 'Soggetto Collettivo' AND day BETWEEN %s AND %s {kind_filter}
         GROUP BY lastname
         ORDER BY lastname
     """
@@ -212,7 +212,7 @@ async def get_channels(
         
     query = f"""
         SELECT DISTINCT channel
-        FROM records
+        FROM {TABLE_NAME}
         {filter}
         GROUP BY channel
         ORDER BY channel
@@ -248,7 +248,7 @@ async def get_programs(
 
     query = f"""
         SELECT DISTINCT program
-        FROM records
+        FROM {TABLE_NAME}
         {filter}
         GROUP BY program
         ORDER BY program
@@ -284,7 +284,7 @@ async def get_affiliations(
 
     query = f"""
         SELECT DISTINCT affiliation
-        FROM records
+        FROM {TABLE_NAME}
         {filter}
         GROUP BY affiliation
         ORDER BY affiliation
@@ -312,7 +312,7 @@ async def get_topics(
 
     query = f"""
         SELECT DISTINCT topic
-        FROM records
+        FROM {TABLE_NAME}
         GROUP BY topic
         ORDER BY topic
     """
@@ -345,6 +345,8 @@ async def get_politician_topics(
     """
     if page < 1 or page_size < 1:
         raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Invalid name")
 
     conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
     params = [name]
@@ -377,8 +379,8 @@ async def get_politician_topics(
 
     query = f"""
         SELECT topic, SUM(duration), COUNT(*)
-        FROM records
-        WHERE {condition_str} AND day >= %s AND day <= %s
+        FROM {TABLE_NAME}
+        WHERE {condition_str} AND day BETWEEN %s AND %s
         GROUP BY topic
         ORDER BY topic
     """
@@ -414,6 +416,8 @@ async def get_political_group_topics(
     """
     if page < 1 or page_size < 1:
         raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Invalid name")
 
     conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
     params = [name]
@@ -441,8 +445,8 @@ async def get_political_group_topics(
 
     query = f"""
         SELECT topic, SUM(duration), COUNT(*)
-        FROM records
-        WHERE {condition_str} AND day >= %s AND day <= %s
+        FROM {TABLE_NAME}
+        WHERE {condition_str} AND day BETWEEN %s AND %s
         GROUP BY topic
         ORDER BY topic
     """
@@ -459,3 +463,264 @@ async def get_political_group_topics(
     paginated_data = explicit_data[(page - 1) * page_size: page * page_size]
 
     return {"political group": name, "topics": paginated_data, "page_size": page_size}
+
+# -------------------------------------------------------
+
+@app.get("/v1/politician-channels/{name}")
+async def get_politician_channels(
+    name: str,
+    start_date_: str = Query(default=start_date, description="Start date"),
+    end_date_: str = Query(default=end_date, description="End date"),
+    kind_: str = Query(default="both", description="Type of data", enum=kind),
+    channel_: str = Query(default="all", description="Channel"),
+    affiliation_: str = Query(default="all", description="Affiliation"),
+    program_: str = Query(default="all", description="Program"),
+    topic_: str = Query(default="all", description="Topic"),
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=100, description="Page size")
+):
+    """
+    Return how much a politician talked in a specific channel
+    """
+    if page < 1 or page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Invalid name")
+
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    params = [name]
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        conditions.append("channel = %s")
+        params.append(channel_)
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        conditions.append("affiliation = %s")
+        params.append(affiliation_)
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        conditions.append("program = %s")
+        params.append(program_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        conditions.append("topic = %s")
+        params.append(topic_)
+    if kind_ != "both":
+        conditions.append("kind = %s")
+        params.append(kind_)
+
+    condition_str = " AND ".join(conditions)
+
+    query = f"""
+        SELECT channel, SUM(duration), COUNT(*)
+        FROM {TABLE_NAME}
+        WHERE {condition_str} AND day BETWEEN %s AND %s
+        GROUP BY channel
+        ORDER BY channel ASC
+    """
+    params.extend([start_date_, end_date_])
+
+    data = query_postgresql(query, params)
+
+    explicit_data = []
+    for d in data:
+        temp_channel = d[0]
+        temp_duration = d[1]
+        temp_interventions = d[2]
+        explicit_data.append({"channel": temp_channel, "minutes": temp_duration, "interventions": temp_interventions})
+
+    paginated_data = explicit_data[(page - 1) * page_size: page * page_size]
+
+    return { "politician": name, "channels": paginated_data, "page_size": page_size }
+
+
+@app.get("/v1/political-group-channels/{name}")
+async def get_political_group_channels(
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic"),
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=100, description="Page size")
+):
+    """
+    Return how much a political group talked in a specific channel
+    """
+    if page < 1 or page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Invalid name")
+
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    params = [name]
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        conditions.append("channel = %s")
+        params.append(channel_)
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        conditions.append("program = %s")
+        params.append(program_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        conditions.append("topic = %s")
+        params.append(topic_)
+    if kind_ != "both":
+        conditions.append("kind = %s")
+        params.append(kind_)
+
+    condition_str = " AND ".join(conditions)
+
+    query = f"""
+        SELECT channel, SUM(duration), COUNT(*)
+        FROM {TABLE_NAME}
+        WHERE {condition_str} AND day BETWEEN %s AND %s
+        GROUP BY channel
+        ORDER BY channel ASC
+    """
+    params.extend([start_date_, end_date_])
+
+    data = query_postgresql(query, params)
+
+    explicit_data = []
+    for d in data:
+        temp_channel = d[0]
+        temp_duration = d[1]
+        temp_interventions = d[2]
+        explicit_data.append({"channel": temp_channel, "minutes": temp_duration, "interventions": temp_interventions})
+
+    paginated_data = explicit_data[(page - 1) * page_size: page * page_size]
+
+    return { "political group": name, "channels": paginated_data, "page_size": page_size }
+
+# -------------------------------------------------------
+
+@app.get("/v1/politicians-affiliation/{name}")
+async def get_politicians_affiliation(
+    name: str,
+):
+    """
+    Return how many politicians participate (have participated) in an affiliation
+    """
+    if name not in affiliations:
+        raise HTTPException(status_code=400, detail="Invalid affiliation")
+
+    query = f"""
+        SELECT DISTINCT fullname
+        FROM {TABLE_NAME}
+        WHERE affiliation = %s AND fullname != affiliation
+    """
+
+    data = query_postgresql(query, [name])
+    final_list = [item[0] for item in data]
+
+    return {"affiliation": name, "politicians": final_list}
+
+
+@app.get("/v1/affiliations-politician/{name}")
+async def get_affiliations_politician(
+    name: str,
+):
+    """
+    Return how many affiliations a politician has participated in
+    """
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Invalid politician")
+
+    query = f"""
+        SELECT DISTINCT affiliation
+        FROM {TABLE_NAME}
+        WHERE fullname = %s
+    """
+
+    data = query_postgresql(query, [name])
+    final_list = [item[0] for item in data]
+
+    return {"politician": name, "affiliations": final_list}
+
+# -------------------------------------------------------
+
+@app.get("/v1/interventions-political-group/{name}")
+async def get_interventions_political_group(
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
+):
+    """
+    Return how much a political group has intervened in tv 
+    (counting also politicians single intervents)
+    """
+    if name not in affiliations:
+        raise HTTPException(status_code=400, detail="Invalid name")
+
+    conditions = ["affiliation = %s"]
+    params = [name]
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        conditions.append("channel = %s")
+        params.append(channel_)
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        conditions.append("program = %s")
+        params.append(program_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        conditions.append("topic = %s")
+        params.append(topic_)
+    if kind_ != "both":
+        conditions.append("kind = %s")
+        params.append(kind_)
+
+    condition_str = " AND ".join(conditions)
+
+    query = f"""
+        SELECT COUNT(*) AS interventions, SUM(duration) AS total_minutes
+        FROM {TABLE_NAME}
+        WHERE {condition_str} AND day BETWEEN %s AND %s
+    """
+    params.extend([start_date_, end_date_])
+
+    data = query_postgresql(query, params)
+
+    return { "political group": name, "interventions": data[0][0], "minutes": data[0][1] }
+
+# -------------------------------------------------------
+
+@app.get("/v1/dates")
+async def get_dates():
+    """
+    Return the first and last date of the dataset
+    """
+    query = f"""
+        SELECT MIN(day), MAX(day)
+        FROM {TABLE_NAME}
+    """
+
+    data = query_postgresql(query)
+
+    start_date_ = data[0][0].strftime('%Y-%m-%d')
+    end_date_ = data[0][1].strftime('%Y-%m-%d')
+
+    return {"first_date": start_date_, "end_date": end_date_}
+
+# -------------------------------------------------------
