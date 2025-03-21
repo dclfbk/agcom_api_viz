@@ -12,6 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 from datetime import datetime
 import warnings
+from datetime import datetime
+import datetime as dt
 
 warnings.filterwarnings('ignore')
 
@@ -724,3 +726,333 @@ async def get_dates():
     return {"first_date": start_date_, "end_date": end_date_}
 
 # -------------------------------------------------------
+
+@app.get("/v1/interventions-politician-per-year/{name}")
+async def get_interventions_politician_per_year(
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    affiliation_: str = Query(default = "all", description="Affiliation"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
+):
+    """
+    Return how much a politician has intervened in tv per year
+    """
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Invalid name")
+
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    params = [name]
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        conditions.append("channel = %s")
+        params.append(channel_)
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        conditions.append("affiliation = %s")
+        params.append(affiliation_)
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        conditions.append("program = %s")
+        params.append(program_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        conditions.append("topic = %s")
+        params.append(topic_)
+    if kind_ != "both":
+        conditions.append("kind = %s")
+        params.append(kind_)
+
+    condition_str = " AND ".join(conditions)
+
+    query = f"""
+        SELECT EXTRACT(YEAR FROM day) AS year, COUNT(*) AS interventions, SUM(duration) AS total_minutes
+        FROM {TABLE_NAME}
+        WHERE {condition_str} AND day BETWEEN %s AND %s
+        GROUP BY year
+        ORDER BY year
+    """
+
+    params.extend([start_date_, end_date_])
+
+    data = query_postgresql(query, params)
+
+    temp_years = [int(row[0]) for row in data]
+    temp_interventions = [row[1] for row in data]
+    temp_minutes = [row[2] for row in data]
+    total_minutes = sum(temp_minutes)
+
+    years = []
+    interventions = []
+    minutes = []
+
+    first_year = int(start_date_.split('/')[0])
+    last_year = int(end_date_.split('/')[0])
+
+    while first_year != (last_year + 1):
+        if first_year in temp_years:
+            years.append(str(temp_years.pop(0)))
+            interventions.append(temp_interventions.pop(0))
+            minutes.append(temp_minutes.pop(0))
+        else:
+            years.append(str(first_year))
+            interventions.append(0)
+            minutes.append(0)
+        first_year += 1
+
+    return { "politician": name, "years": years,
+            "interventions": interventions, "minutes": minutes, "total": total_minutes }
+
+
+@app.get("/v1/interventions-political-group-per-year/{name}")
+async def get_interventions_political_group_per_year(
+    name: str,
+    start_date_: str = Query(default = start_date, description="Start date"),
+    end_date_: str = Query(default = end_date, description="End date"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic")
+):
+    """
+    Return how much a political group has intervened in tv per year
+    """
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Invalid name")
+
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    params = [name]
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        conditions.append("channel = %s")
+        params.append(channel_)
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        conditions.append("program = %s")
+        params.append(program_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        conditions.append("topic = %s")
+        params.append(topic_)
+    if kind_ != "both":
+        conditions.append("kind = %s")
+        params.append(kind_)
+
+    condition_str = " AND ".join(conditions)
+
+    query = f"""
+        SELECT EXTRACT(YEAR FROM day) AS year, COUNT(*) AS interventions, SUM(duration) AS total_minutes
+        FROM {TABLE_NAME}
+        WHERE {condition_str} AND day BETWEEN %s AND %s
+        GROUP BY year
+        ORDER BY year
+    """
+
+    params.extend([start_date_, end_date_])
+
+    data = query_postgresql(query, params)
+
+    temp_years = [int(row[0]) for row in data]
+    temp_interventions = [row[1] for row in data]
+    temp_minutes = [row[2] for row in data]
+    total_minutes = sum(temp_minutes)
+
+    years = []
+    interventions = []
+    minutes = []
+
+    first_year = int(start_date_.split('/')[0])
+    last_year = int(end_date_.split('/')[0])
+
+    while first_year != (last_year + 1):
+        if first_year in temp_years:
+            years.append(str(temp_years.pop(0)))
+            interventions.append(temp_interventions.pop(0))
+            minutes.append(temp_minutes.pop(0))
+        else:
+            years.append(str(first_year))
+            interventions.append(0)
+            minutes.append(0)
+        first_year += 1
+
+    return { "political group": name, "years": years,
+            "interventions": interventions, "minutes": minutes, "total": total_minutes }
+
+# -------------------------------------------------------
+
+@app.get("/v1/interventions-politician-per-day/{name}")
+async def get_interventions_politician_per_day(
+    name: str,
+    year: str = Query(description="choose year"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    affiliation_: str = Query(default = "all", description="Affiliation"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic"),
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=366, description="Page size")
+):
+    """
+    Return how much a politician has intervened in tv per day for a specific year
+    """
+    if page < 1 or page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+    if name not in politicians_list:
+        raise HTTPException(status_code=400, detail="Invalid name")
+
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    params = [name]
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        conditions.append("channel = %s")
+        params.append(channel_)
+    if affiliation_ != "all":
+        if affiliation_ not in affiliations:
+            raise HTTPException(status_code=400, detail="Invalid affiliation")
+        conditions.append("affiliation = %s")
+        params.append(affiliation_)
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        conditions.append("program = %s")
+        params.append(program_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        conditions.append("topic = %s")
+        params.append(topic_)
+    if kind_ != "both":
+        conditions.append("kind = %s")
+        params.append(kind_)
+
+    condition_str = " AND ".join(conditions)
+
+    query = f"""
+        SELECT day, COUNT(*) AS interventions, COALESCE(SUM(duration), 0) AS total_minutes
+        FROM {TABLE_NAME}
+        WHERE {condition_str} AND day BETWEEN %s AND %s
+        GROUP BY day 
+        ORDER BY day
+    """
+    start_date_ = str(year) + "/01/01"
+    end_date_ = str(year) + "/12/31"
+
+    params.extend([start_date_, end_date_])
+
+    data = query_postgresql(query, params)
+
+    begin_date = dt.date(int(start_date_.split('/')[0]),
+                         int(start_date_.split('/')[1]),
+                         int(start_date_.split('/')[2]))
+    final_date = dt.date(int(end_date_.split('/')[0]),
+                         int(end_date_.split('/')[1]),
+                         int(end_date_.split('/')[2]))
+
+    results = {}
+    current_date = begin_date
+
+    while current_date <= final_date:
+        results[str(current_date)] = {"interventions": 0, "minutes": 0}
+        current_date += dt.timedelta(days=1)
+
+    for day, interventions, minutes in data:
+        results[str(day)] = {"interventions": interventions, "minutes": minutes}
+
+    paginated_list = list(results.items())[(page - 1) * page_size : page * page_size]
+
+    return {"politician": name, "interventions": paginated_list, 
+            "max_value": max(paginated_list, key=lambda x: x[1]["interventions"])[1]["interventions"]}
+
+
+@app.get("/v1/interventions-political-group-per-day/{name}")
+async def get_interventions_political_group_per_day(
+    name: str,
+    year: str = Query(description="choose year"),
+    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
+    channel_: str = Query(default = "all", description="Channel"),
+    program_: str = Query(default = "all", description="Program"),
+    topic_: str = Query(default = "all", description="Topic"),
+    page: int = Query(default=1, description="Page number"),
+    page_size: int = Query(default=366, description="Page size")
+):
+    """
+    Return how much a political group has intervened in tv per day for a specific year
+    """
+    if page < 1 or page_size < 1:
+        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+    if name not in political_groups_list:
+        raise HTTPException(status_code=400, detail="Invalid name")
+
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    params = [name]
+
+    if channel_ != "all":
+        if channel_ not in channels:
+            raise HTTPException(status_code=400, detail="Invalid channel")
+        conditions.append("channel = %s")
+        params.append(channel_)
+    if program_ != "all":
+        if program_ not in programs:
+            raise HTTPException(status_code=400, detail="Invalid program")
+        conditions.append("program = %s")
+        params.append(program_)
+    if topic_ != "all":
+        if topic_ not in topics:
+            raise HTTPException(status_code=400, detail="Invalid topic")
+        conditions.append("topic = %s")
+        params.append(topic_)
+    if kind_ != "both":
+        conditions.append("kind = %s")
+        params.append(kind_)
+
+    condition_str = " AND ".join(conditions)
+
+    query = f"""
+        SELECT day, COUNT(*) AS interventions, COALESCE(SUM(duration), 0) AS total_minutes
+        FROM {TABLE_NAME}
+        WHERE {condition_str} AND day BETWEEN %s AND %s
+        GROUP BY day 
+        ORDER BY day
+    """
+    start_date_ = str(year) + "/01/01"
+    end_date_ = str(year) + "/12/31"
+
+    params.extend([start_date_, end_date_])
+
+    data = query_postgresql(query, params)
+
+    begin_date = dt.date(int(start_date_.split('/')[0]),
+                         int(start_date_.split('/')[1]),
+                         int(start_date_.split('/')[2]))
+    final_date = dt.date(int(end_date_.split('/')[0]),
+                         int(end_date_.split('/')[1]),
+                         int(end_date_.split('/')[2]))
+
+    results = {}
+    current_date = begin_date
+
+    while current_date <= final_date:
+        results[str(current_date)] = {"interventions": 0, "minutes": 0}
+        current_date += dt.timedelta(days=1)
+
+    for day, interventions, minutes in data:
+        results[str(day)] = {"interventions": interventions, "minutes": minutes}
+
+    paginated_list = list(results.items())[(page - 1) * page_size : page * page_size]
+
+    return { "political group": name, "interventions": paginated_list,
+             "max_value": max(paginated_list, key=lambda x: x[1]["interventions"])[1]["interventions"]}

@@ -120,6 +120,7 @@ def from_xml_to_csv(file_xml):
                 continue
             
             if name == 'Soggetto Collettivo' or name == 'Soggetto collettivo' or name == 'soggetto collettivo' or name == 'soggetto Collettivo':
+                name = 'Soggetto Collettivo'
                 fullname = lastname
             else:
                 fullname = name + " " + lastname
