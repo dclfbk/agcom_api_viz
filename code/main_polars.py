@@ -1493,7 +1493,6 @@ async def get_channels_programs_topics_political_group(
         "total_program_pages": (total_program_count + program_page_size - 1) // program_page_size
     }
 
-
 # -------------------------------------------------------
 
 @app.get("/v1/channel-politicians/{channel}")
