@@ -14,6 +14,10 @@ from datetime import datetime
 import warnings
 from datetime import datetime
 import datetime as dt
+import psutil
+import os
+
+
 
 warnings.filterwarnings('ignore')
 
@@ -117,6 +121,21 @@ async def contact():
     return FileResponse('templates/pages-contact.html')
 
 # -------------------------------------------------------
+
+@app.get("/v1/data-for-select")
+async def get_data_for_select():
+    """
+    Return all data used to initialize selects in homepage
+    """
+
+    return {"start_date": start_date,
+            "end_date": end_date,
+            "politicians_list": politicians_list,
+            "political_groups_list": political_groups_list,
+            "channels": channels,
+            "programs": programs,
+            "affiliations": affiliations,
+            "topics": topics }
 
 @app.get("/v1/politicians")
 async def get_politicians(
