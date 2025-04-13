@@ -361,12 +361,13 @@ async function barPieChart() {
             title: {},
             tooltip: {},
             legend: {
+              top: 100,
               left: "right",
               data: data_legend,
             },
             calculable: true,
             grid: {
-              top: 80,
+              top: 300,
               bottom: 100,
               tooltip: {
                 trigger: "axis",
@@ -401,7 +402,7 @@ async function barPieChart() {
               {
                 type: "text",
                 left: 50,
-                top: 20,
+                top: 210,
                 style: {
                   text: "Back",
                   fontSize: 18,

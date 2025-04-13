@@ -196,6 +196,12 @@ async function fetchAffiliations() {
   var old_value = undefined;
   if(select_affiliations.val().length > 0){
     old_value = select_affiliations.val()[0];               //remember eventual affiliation that was selected
+    if($("#select_pol").val().length > 1){
+      select_affiliations.prop('disabled', true).select2({
+        placeholder: '-'
+      });
+      return;
+    }
   }
   if ($("#select_pol").val().length > 1) {                      //if more politicians are selected, emtpy and disable affiliations selection
     select_affiliations.prop('disabled', true).select2({
@@ -269,7 +275,7 @@ async function updatePoliticians() {
   rad["value"] = selectedOption;                                //need a rad variable just to pass it into the handleOptionChange() function
   var old_value = undefined;
   if (select_pol.val().length > 0){
-    const old_value = select_pol.val()[0];
+    old_value = select_pol.val()[0];
   }
   handleOptionChange(rad).then(() => {                          //call handleOptionChange() function to update politicians
     if (old_value != undefined){                                //if there was an politician selected
