@@ -78,7 +78,7 @@ async function selectPolLength4() {
 
 //function to limit politicians selection to 10
 async function selectPolLength10() {
-  select_pol.select2('destroy');
+  $("#select_pol").select2('destroy');
   $("#select_pol").select2({
     maximumSelectionLength: 10,
     placeholder: "Cerca politico/partito",
