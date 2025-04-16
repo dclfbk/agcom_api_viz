@@ -2088,7 +2088,7 @@ async def get_program_politicians(
     if channel_ != "all":
         if channel_ not in channels:
             raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("program = %s")
+        conditions.append("channel = %s")
         params.append(channel_)
     if topic_ != "all":
         if topic_ not in topics:
@@ -2146,7 +2146,7 @@ async def get_program_political_groups(
     if channel_ != "all":
         if channel_ not in channels:
             raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("program = %s")
+        conditions.append("channel = %s")
         params.append(channel_)
     if topic_ != "all":
         if topic_ not in topics:

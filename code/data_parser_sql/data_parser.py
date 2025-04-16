@@ -6,6 +6,10 @@ import xml.etree.ElementTree as ET
 import csv
 from datetime import datetime
 import psycopg2
+from corrections import corrections_
+import pandas as pd
+import numpy as np
+import chardet
 
 
 db_config = {
@@ -47,6 +51,7 @@ def get_links():
         i=i+1   # prossima pagina
     return list_url
 
+
 #FUNZIONE PER VEDERE SE I DATI DEL FILE E' GIA' STATO CARICATO SUL DATABASE
 def check_files(list_url):
     try:
@@ -76,13 +81,17 @@ def check_files(list_url):
         """
 
         cursor.execute(retrieve_filenames_query)
-        filenames = cursor.fetchall()
+        filenames_ = cursor.fetchall()
+        filenames = [url[0] for url in filenames_]
 
         final_list = []
 
         for file in list_url:
             if file not in filenames:
                 final_list.append(file)
+    
+        cursor.executemany("INSERT INTO files_list (filename) VALUES (%s)", [(f,) for f in final_list])
+        conn.commit()
 
     except Exception as e:
         print(f"Errore durante il check dei files: {e}")
@@ -90,7 +99,7 @@ def check_files(list_url):
     finally:
         cursor.close()
         conn.close()
-    
+        
     return final_list
 
 
@@ -220,6 +229,26 @@ def remove_csv(file):
         print(f"File non trovato o non valido: {file}")
 
 
+#METODO PER CORREGGERE L'ENCODING IN UTF-8
+def fix_encoding(input_file):
+    # Leggi il file in modalità binaria per rilevare la codifica
+    with open(input_file, 'rb') as f:
+        raw_data = f.read()
+        result = chardet.detect(raw_data)  # Usa chardet per rilevare la codifica
+        detected_encoding = result['encoding']
+        print(f"Codifica rilevata per {input_file}: {detected_encoding}")
+
+    # Se la codifica è diversa da UTF-8, convertila
+    if detected_encoding.lower() != 'utf-8':
+        with open(input_file, 'r', encoding=detected_encoding) as f:
+            content = f.read()
+        with open(input_file, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print(f"File {input_file} convertito correttamente in UTF-8.")
+    else:
+        print(f"Il file {input_file} è già in UTF-8.")
+
+
 #METODO PER INSERIRE I DATI DEI FILE CSV NEL SERVER POSTGRESQL
 def insert_data_postgresql(csv_file_list):
     try:
@@ -253,11 +282,23 @@ def insert_data_postgresql(csv_file_list):
         conn.commit()
 
         for csv_file in csv_file_list:
-        # Apertura del file CSV e inserimento dati
-            with open(csv_file, 'r') as file:
+            #Modifica caratteri sbagliati
+            df = pd.read_csv(csv_file)
+            df.replace(corrections_, regex=False, inplace=True)
+            df.loc[(df['name'] == 'Antonio') & (df['lastname'] == "D'Al�"), 'lastname'] = "D'Alì"
+            df.loc[(df['name'] == 'Ciro') & (df['lastname'] == "D'Al�"), 'lastname'] = "D'Alò"
+            df['fullname'] = np.where(df['name'] == 'Soggetto Collettivo', 
+                      df['lastname'], 
+                      df['name'] + ' ' + df['lastname'])
+            df.to_csv(csv_file, index=False)
+
+            fix_encoding(csv_file)
+
+            # Apertura del file CSV e inserimento dati
+            with open(csv_file, 'r', encoding='utf-8') as file:
 
                 # Costruzione della query SQL
-                cursor.copy_expert(f"COPY records FROM STDIN WITH CSV HEADER DELIMITER ','", file)
+                cursor.copy_expert(f"COPY records FROM STDIN WITH CSV HEADER DELIMITER ',' ENCODING 'UTF8'", file)
                 conn.commit()
             remove_csv(csv_file)
 
