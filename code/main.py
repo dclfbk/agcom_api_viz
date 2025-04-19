@@ -1851,8 +1851,6 @@ async def get_channels_programs_topics_political_group(
     topic_: str = Query(default="all", description="Topic"),
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=10000, description="Page size"),
-    program_page: int = Query(default=1, description="Program page number"),
-    program_page_size: int = Query(default=10000, description="Program page size")
 ):
     """
     Return for a political group, all the channels they spoke to, in which programs, 

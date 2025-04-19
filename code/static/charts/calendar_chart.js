@@ -231,7 +231,7 @@ async function calendarChart() {
     const month = String(date.getMonth() + 1).padStart(2, '0'); // aggiunge lo 0 davanti se serve
     const day = String(date.getDate()).padStart(2, '0');
 
-    const formattedDate = `${year}-${month}-${day}`;
+    const formattedDate = `${year}/${month}/${day}`;
 
     document.getElementById("tableDiv").style.display = "none";
     document.getElementById("loadingScreen").style.display = "block";
