@@ -1,24 +1,23 @@
 """
 This module provides a series of RESTful APIs to provide data
-gathered from the agcomdata.parquet file.
+gathered from the AGCOM site.
 
 Author: Merak Winston Hall
 Date: 2024-07-13
 """
 
+import asyncpg
+import asyncio
 import psycopg2
-from fastapi import FastAPI, Query, HTTPException
+from typing import Annotated
+from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 from datetime import datetime
 import warnings
 from datetime import datetime
 import datetime as dt
-import psutil
-import os
-
-
-
+from contextlib import asynccontextmanager
 warnings.filterwarnings('ignore')
 
 DB_HOST = "dpg-cvu065p5pdvs73e2gvag-a.frankfurt-postgres.render.com"
@@ -28,7 +27,42 @@ DB_USER = "agcom_dati_monitoraggio_v0ik_user"
 DB_PASSWORD = "0rqhxQ8XnEZzx3KNHmYQnQHv321YbmC5"
 TABLE_NAME = "records"
 
-def query_postgresql(query, params=None):
+
+db_pool = None
+kind = ["speech", "news", "both"]
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global db_pool, start_date, end_date, kind, politicians_list, political_groups_list, channels, programs, affiliations, topics
+
+    db_pool = await asyncpg.create_pool(
+        host=DB_HOST,
+        port=DB_PORT,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
+        min_size=1,
+        max_size=10,
+    )
+
+    static_data = await get_static_data()
+    politicians_list = static_data["politicians"]
+    political_groups_list = static_data["political_groups"]
+    channels = static_data["channels"]
+    programs = static_data["programs"]
+    affiliations = static_data["affiliations"]
+    topics = static_data["topics"]
+
+    yield
+    await db_pool.close()
+
+
+async def query_postgresql(query: str, params: tuple = None):
+    async with db_pool.acquire() as conn:
+        records = await conn.fetch(query, *params) if params else await conn.fetch(query)
+        return [dict(r) for r in records]
+    
+def query_postgresql_sync(query, params=None):
     try:
         conn = psycopg2.connect(
             host=DB_HOST,
@@ -47,27 +81,80 @@ def query_postgresql(query, params=None):
 
 # -------------------------------------------------------
 
-def get_min_max_dates():
+async def get_min_max_dates():
+    query = f"""SELECT MIN(day) AS min, MAX(day) AS max FROM {TABLE_NAME};"""
+    result = await query_postgresql(query)
+    return result[0]['min'].strftime('%Y/%m/%d'), result[0]['max'].strftime('%Y/%m/%d')
+
+def get_min_max_dates_sync():
     query = f"""SELECT MIN(day), MAX(day) FROM {TABLE_NAME};"""
-    result = query_postgresql(query)
+    result = query_postgresql_sync(query)
     return result[0][0].strftime('%Y/%m/%d'), result[0][1].strftime('%Y/%m/%d')
 
-start_date, end_date = get_min_max_dates()
+start_date, end_date = get_min_max_dates_sync()
 
-kind = ["speech", "news", "both"]
+async def get_static_data():
+    politicians_query = f"""
+        SELECT DISTINCT fullname
+        FROM {TABLE_NAME}
+        WHERE name != 'Soggetto Collettivo';
+    """
+    political_groups_query = f"""
+        SELECT DISTINCT lastname
+        FROM {TABLE_NAME}
+        WHERE name = 'Soggetto Collettivo';
+    """
+    queries = {
+        "channels": f"SELECT DISTINCT channel FROM {TABLE_NAME};",
+        "programs": f"SELECT DISTINCT program FROM {TABLE_NAME};",
+        "affiliations": f"SELECT DISTINCT affiliation FROM {TABLE_NAME};",
+        "topics": f"SELECT DISTINCT topic FROM {TABLE_NAME};"
+    }
 
-politicians_list = [k[0] for k in query_postgresql(f"""SELECT DISTINCT fullname FROM {TABLE_NAME} WHERE name != 'Soggetto Collettivo';""")]
-political_groups_list  = [k[0] for k in query_postgresql(f"""SELECT DISTINCT lastname FROM {TABLE_NAME} WHERE name = 'Soggetto Collettivo';""")]
-channels = [k[0] for k in query_postgresql(f"""SELECT DISTINCT channel FROM {TABLE_NAME};""")]
-programs = [k[0] for k in query_postgresql(f"""SELECT DISTINCT program FROM {TABLE_NAME};""")]
-affiliations = [k[0] for k in query_postgresql(f"""SELECT DISTINCT affiliation FROM {TABLE_NAME};""")]
-topics = [k[0] for k in query_postgresql(f"""SELECT DISTINCT topic FROM {TABLE_NAME};""")]
+    politicians = [r['fullname'] for r in await query_postgresql(politicians_query)]
+    political_groups = [r['lastname'] for r in await query_postgresql(political_groups_query)]
+
+    channels = [r['channel'] for r in await query_postgresql(queries["channels"])]
+    programs = [r['program'] for r in await query_postgresql(queries["programs"])]
+    affiliations = [r['affiliation'] for r in await query_postgresql(queries["affiliations"])]
+    topics = [r['topic'] for r in await query_postgresql(queries["topics"])]
+
+    return {
+        "politicians": politicians,
+        "political_groups": political_groups,
+        "channels": channels,
+        "programs": programs,
+        "affiliations": affiliations,
+        "topics": topics
+    }
 
 def validate_date(date_str):
     try:
         return datetime.strptime(date_str, '%Y/%m/%d')
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY/MM/DD") from exc
+    
+def add_condition(index, field, value, allowed_list, conditions, params):
+    if value != "all" and value != "both":
+        if value not in allowed_list:
+            raise HTTPException(status_code=400, detail=f"Invalid {field}")
+        conditions.append(f"{field} = ${index}")
+        params.append(value)
+        index += 1
+    return index
+
+def add_topics(index, topics_list, conditions, params):
+    temp_conditions = []
+    for topic_ in topics_list:
+        if topic_ not in topics:
+                raise HTTPException(status_code=400, detail=f"Invalid topic")
+        temp_conditions.append(f"${index}")
+        params.append(topic_)
+        index += 1
+    if topics_list:
+        query = "topic IN (" + ", ".join(temp_conditions) + ")"
+        conditions.append(query)
+    return index
 
 # -------------------------------------------------------
 
@@ -78,19 +165,16 @@ This API provides the possibility to query the elementary televised monitoring d
 
 The data can be found in XML format at [https://www.agcom.it/dati-elementari-di-monitoraggio-televisivo](https://www.agcom.it/dati-elementari-di-monitoraggio-televisivo)
 
-Period:<br/>
-from **%s** to **%s**
-
-
 The license under which the data is released by AGCOM is CC-BY-SA-NC
 
 ![](https://www.agcom.it/documents/10179/4502194/Logo+Creative+common/2e1fe5a2-4324-4965-b8af-76403bb42b15?t=1618583317352)
 
-""" % (start_date, end_date)
+"""
 
 app = FastAPI(
     title="AGCOM - dati elementari di monitoraggio televisivo",
     version="0.0.1",
+    lifespan=lifespan
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -137,33 +221,44 @@ async def get_data_for_select():
             "affiliations": affiliations,
             "topics": topics }
 
+
 @app.get("/v1/politicians")
 async def get_politicians(
+    request: Request,
     start_date_: str = Query(default=start_date),
     end_date_: str = Query(default=end_date),
     kind_: str = Query(default="both", enum=kind),
     page: int = Query(default=1),
     page_size: int = Query(default=5000)
 ):
-    """
-    Return all politicians with pagination
-    """
-    if page < 1 or page_size < 1:
-        raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
-    
+
+    start_date_obj = datetime.strptime(start_date_, "%Y/%m/%d").date()
+    end_date_obj = datetime.strptime(end_date_, "%Y/%m/%d").date()
 
     kind_filter = "" if kind_ == "both" else f"AND kind = '{kind_}'"
 
     query = f"""
         SELECT DISTINCT fullname
         FROM {TABLE_NAME}
-        WHERE name != 'Soggetto Collettivo' AND day BETWEEN %s AND %s {kind_filter}
+        WHERE name != 'Soggetto Collettivo' AND day BETWEEN $1 AND $2 {kind_filter}
         GROUP BY fullname
         ORDER BY fullname
     """
 
-    politicians_ = query_postgresql(query, (start_date_, end_date_))
-    politicians_ = [p[0] for p in politicians_]
+    task = asyncio.create_task(query_postgresql(query, (start_date_obj, end_date_obj)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    politicians_ = [row['fullname'] for row in rows]
 
     start = (page - 1) * page_size
     end = start + page_size
@@ -177,6 +272,7 @@ async def get_politicians(
 
 @app.get("/v1/political-groups")
 async def get_political_groups(
+    request: Request,
     start_date_: str = Query(default=start_date, description="Start date"),
     end_date_: str = Query(default=end_date, description="End date"),
     kind_: str = Query(default="both", description="Type of data", enum=kind),
@@ -188,19 +284,34 @@ async def get_political_groups(
     """
     if page < 1 or page_size < 1:
         raise HTTPException(status_code=400, detail="Page and page size must be positive integers.")
+    
+    start_date_obj = datetime.strptime(start_date_, "%Y/%m/%d").date()
+    end_date_obj = datetime.strptime(end_date_, "%Y/%m/%d").date()
 
     kind_filter = "" if kind_ == "both" else f"AND kind = '{kind_}'"
 
     query = f"""
         SELECT DISTINCT lastname
         FROM {TABLE_NAME}
-        WHERE name = 'Soggetto Collettivo' AND day BETWEEN %s AND %s {kind_filter}
+        WHERE name = 'Soggetto Collettivo' AND day BETWEEN $1 AND $2 {kind_filter}
         GROUP BY lastname
         ORDER BY lastname
     """
 
-    political_groups_ = query_postgresql(query, (start_date_, end_date_))
-    political_groups_ = [pg[0] for pg in political_groups_]
+    task = asyncio.create_task(query_postgresql(query, (start_date_obj, end_date_obj)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+    
+    political_groups_ = [row['lastname'] for row in rows]
 
     start = (page - 1) * page_size
     end = start + page_size
@@ -214,6 +325,7 @@ async def get_political_groups(
 
 @app.get("/v1/channels")
 async def get_channels(
+    request: Request,
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=5000, description="Page size"),
     program_: str = Query(default = "all", description="Program")
@@ -239,8 +351,20 @@ async def get_channels(
         ORDER BY channel
     """
 
-    channels_ = query_postgresql(query)
-    channels_ = [k[0] for k in channels_]
+    task = asyncio.create_task(query_postgresql(query))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    channels_ = [row['channel'] for row in rows]
 
     start = (page - 1) * page_size
     end = start + page_size
@@ -250,6 +374,7 @@ async def get_channels(
 
 @app.get("/v1/programs")
 async def get_programs(
+    request: Request,
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=5000, description="Page size"),
     channel_: str = Query(default = "all", description="Channel")
@@ -275,8 +400,20 @@ async def get_programs(
         ORDER BY program
     """
 
-    programs_ = query_postgresql(query)
-    programs_ = [k[0] for k in programs_]
+    task = asyncio.create_task(query_postgresql(query))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    programs_ = [row['program'] for row in rows]
 
     start = (page - 1) * page_size
     end = start + page_size
@@ -286,6 +423,7 @@ async def get_programs(
 
 @app.get("/v1/affiliations")
 async def get_affiliations(
+    request: Request,
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=5000, description="Page size"),
     politician_: str = Query(default = "all", description="Politician")
@@ -311,8 +449,20 @@ async def get_affiliations(
         ORDER BY affiliation
     """
 
-    affiliations_ = query_postgresql(query)
-    affiliations_ = [k[0] for k in affiliations_]
+    task = asyncio.create_task(query_postgresql(query))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+    
+    affiliations_ = [row['affiliation'] for row in rows]
 
     start = (page - 1) * page_size
     end = start + page_size
@@ -322,6 +472,7 @@ async def get_affiliations(
 
 @app.get("/v1/topics")
 async def get_topics(
+    request: Request,
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=5000, description="Page size")
 ):
@@ -338,8 +489,20 @@ async def get_topics(
         ORDER BY topic
     """
 
-    topics_ = query_postgresql(query)
-    topics_ = [k[0] for k in topics_]
+    task = asyncio.create_task(query_postgresql(query))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+        
+    topics_ = [row['topic'] for row in rows]
 
     start = (page - 1) * page_size
     end = start + page_size
@@ -350,6 +513,7 @@ async def get_topics(
 
 @app.get("/v1/politician-topics/{name}")
 async def get_politician_topics(
+    request: Request,
     name: str,
     start_date_: str = Query(default=start_date),
     end_date_: str = Query(default=end_date),
@@ -357,7 +521,7 @@ async def get_politician_topics(
     channel_: str = Query(default="all"),
     affiliation_: str = Query(default="all"),
     program_: str = Query(default="all"),
-    topic_: str = Query(default="all"),
+    topics_list: Annotated[list[str], Query()] = [],
     page: int = Query(default=1),
     page_size: int = Query(default=100)
 ):
@@ -369,50 +533,49 @@ async def get_politician_topics(
     if name not in politicians_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT topic, SUM(duration), COUNT(*)
+        SELECT topic, SUM(duration) as duration, COUNT(*) as interventions
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY topic
         ORDER BY topic
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
     explicit_data = []
-    for d in data:
-        temp_topic = d[0]
-        temp_duration = d[1]
-        temp_interventions = d[2]
+    for row in rows:
+        temp_topic = row['topic']
+        temp_duration = row['duration']
+        temp_interventions = row['interventions']
         explicit_data.append({"topic": temp_topic, "minutes": temp_duration, "interventions": temp_interventions})
 
     paginated_data = explicit_data[(page - 1) * page_size: page * page_size]
@@ -422,13 +585,14 @@ async def get_politician_topics(
 
 @app.get("/v1/political-group-topics/{name}")
 async def get_political_group_topics(
+    request: Request,
     name: str,
     start_date_: str = Query(default=start_date),
     end_date_: str = Query(default=end_date),
     kind_: str = Query(default="both", enum=kind),
     channel_: str = Query(default="all"),
     program_: str = Query(default="all"),
-    topic_: str = Query(default="all"),
+    topics_list: Annotated[list[str], Query()] = [],
     page: int = Query(default=1),
     page_size: int = Query(default=100)
 ):
@@ -440,45 +604,48 @@ async def get_political_group_topics(
     if name not in political_groups_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    conditions = ["name = 'Soggetto Collettivo'", "lastname =$1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT topic, SUM(duration), COUNT(*)
+        SELECT topic, SUM(duration) as duration, COUNT(*) as interventions
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY topic
         ORDER BY topic
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
     explicit_data = []
-    for d in data:
-        temp_topic = d[0]
-        temp_duration = d[1]
-        temp_interventions = d[2]
+    for row in rows:
+        temp_topic = row['topic']
+        temp_duration = row['duration']
+        temp_interventions = row['interventions']
         explicit_data.append({"topic": temp_topic, "minutes": temp_duration, "interventions": temp_interventions})
 
     paginated_data = explicit_data[(page - 1) * page_size: page * page_size]
@@ -489,6 +656,7 @@ async def get_political_group_topics(
 
 @app.get("/v1/politician-channels/{name}")
 async def get_politician_channels(
+    request: Request,
     name: str,
     start_date_: str = Query(default=start_date, description="Start date"),
     end_date_: str = Query(default=end_date, description="End date"),
@@ -496,7 +664,7 @@ async def get_politician_channels(
     channel_: str = Query(default="all", description="Channel"),
     affiliation_: str = Query(default="all", description="Affiliation"),
     program_: str = Query(default="all", description="Program"),
-    topic_: str = Query(default="all", description="Topic"),
+    topics_list: Annotated[list[str], Query()] = [],
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=100, description="Page size")
 ):
@@ -508,51 +676,49 @@ async def get_politician_channels(
     if name not in politicians_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT channel, SUM(duration), COUNT(*)
+        SELECT channel, SUM(duration) as duration, COUNT(*) as interventions
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY channel
         ORDER BY channel ASC
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     explicit_data = []
-    for d in data:
-        temp_channel = d[0]
-        temp_duration = d[1]
-        temp_interventions = d[2]
+    for row in rows:
+        temp_channel = row['channel']
+        temp_duration = row['duration']
+        temp_interventions = row['interventions']
         explicit_data.append({"channel": temp_channel, "minutes": temp_duration, "interventions": temp_interventions})
 
     paginated_data = explicit_data[(page - 1) * page_size: page * page_size]
@@ -562,13 +728,14 @@ async def get_politician_channels(
 
 @app.get("/v1/political-group-channels/{name}")
 async def get_political_group_channels(
+    request: Request,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     channel_: str = Query(default = "all", description="Channel"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic"),
+    topics_list: Annotated[list[str], Query()] = [],
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=100, description="Page size")
 ):
@@ -580,46 +747,48 @@ async def get_political_group_channels(
     if name not in political_groups_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT channel, SUM(duration), COUNT(*)
+        SELECT channel, SUM(duration) as duration, COUNT(*) as interventions
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY channel
         ORDER BY channel ASC
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     explicit_data = []
-    for d in data:
-        temp_channel = d[0]
-        temp_duration = d[1]
-        temp_interventions = d[2]
+    for row in rows:
+        temp_channel = row['channel']
+        temp_duration = row['duration']
+        temp_interventions = row['interventions']
         explicit_data.append({"channel": temp_channel, "minutes": temp_duration, "interventions": temp_interventions})
 
     paginated_data = explicit_data[(page - 1) * page_size: page * page_size]
@@ -631,6 +800,7 @@ async def get_political_group_channels(
 @app.get("/v1/politicians-affiliation/{name}")
 async def get_politicians_affiliation(
     name: str,
+    request: Request
 ):
     """
     Return how many politicians participate (have participated) in an affiliation
@@ -641,11 +811,22 @@ async def get_politicians_affiliation(
     query = f"""
         SELECT DISTINCT fullname
         FROM {TABLE_NAME}
-        WHERE affiliation = %s AND fullname != affiliation
+        WHERE affiliation = $1 AND fullname != affiliation
     """
+    task = asyncio.create_task(query_postgresql(query, tuple([name])))
 
-    data = query_postgresql(query, [name])
-    final_list = [item[0] for item in data]
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    final_list = [row['fullname'] for row in rows]
 
     return {"affiliation": name, "politicians": final_list}
 
@@ -653,6 +834,7 @@ async def get_politicians_affiliation(
 @app.get("/v1/affiliations-politician/{name}")
 async def get_affiliations_politician(
     name: str,
+    request: Request
 ):
     """
     Return how many affiliations a politician has participated in
@@ -663,67 +845,25 @@ async def get_affiliations_politician(
     query = f"""
         SELECT DISTINCT affiliation
         FROM {TABLE_NAME}
-        WHERE fullname = %s
+        WHERE fullname = $1
     """
 
-    data = query_postgresql(query, [name])
-    final_list = [item[0] for item in data]
+    task = asyncio.create_task(query_postgresql(query, tuple([name])))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    final_list = [row['affiliation'] for row in rows]
 
     return {"politician": name, "affiliations": final_list}
-
-# -------------------------------------------------------
-
-@app.get("/v1/interventions-political-group/{name}")
-async def get_interventions_political_group(
-    name: str,
-    start_date_: str = Query(default = start_date, description="Start date"),
-    end_date_: str = Query(default = end_date, description="End date"),
-    kind_: str = Query(default = "both" , description="Type of data", enum = kind),
-    channel_: str = Query(default = "all", description="Channel"),
-    program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
-):
-    """
-    Return how much a political group has intervened in tv 
-    (counting also politicians single intervents)
-    """
-    if name not in affiliations:
-        raise HTTPException(status_code=400, detail="Invalid name")
-
-    conditions = ["affiliation = %s"]
-    params = [name]
-
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
-
-    condition_str = " AND ".join(conditions)
-
-    query = f"""
-        SELECT COUNT(*) AS interventions, SUM(duration) AS total_minutes
-        FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
-    """
-    params.extend([start_date_, end_date_])
-
-    data = query_postgresql(query, params)
-
-    return { "political group": name, "interventions": data[0][0], "minutes": data[0][1] }
 
 # -------------------------------------------------------
 
@@ -737,7 +877,7 @@ async def get_dates():
         FROM {TABLE_NAME}
     """
 
-    data = query_postgresql(query)
+    data = query_postgresql_sync(query)
 
     start_date_ = data[0][0].strftime('%Y-%m-%d')
     end_date_ = data[0][1].strftime('%Y-%m-%d')
@@ -748,6 +888,7 @@ async def get_dates():
 
 @app.get("/v1/interventions-politician-per-year/{name}")
 async def get_interventions_politician_per_year(
+    request: Request,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
@@ -755,7 +896,7 @@ async def get_interventions_politician_per_year(
     channel_: str = Query(default = "all", description="Channel"),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return how much a politician has intervened in tv per year
@@ -763,50 +904,48 @@ async def get_interventions_politician_per_year(
     if name not in politicians_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT EXTRACT(YEAR FROM day) AS year, COUNT(*) AS interventions, SUM(duration) AS total_minutes
+        SELECT EXTRACT(YEAR FROM day) AS year, COUNT(*) AS interventions, SUM(duration) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY year
         ORDER BY year
     """
 
-    params.extend([start_date_, end_date_])
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
-    data = query_postgresql(query, params)
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
 
-    temp_years = [int(row[0]) for row in data]
-    temp_interventions = [row[1] for row in data]
-    temp_minutes = [row[2] for row in data]
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+
+    temp_years = [int(row['year']) for row in rows]
+    temp_interventions = [row['interventions'] for row in rows]
+    temp_minutes = [row['duration'] for row in rows]
     total_minutes = sum(temp_minutes)
 
     years = []
@@ -833,13 +972,14 @@ async def get_interventions_politician_per_year(
 
 @app.get("/v1/interventions-political-group-per-year/{name}")
 async def get_interventions_political_group_per_year(
+    request: Request,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     channel_: str = Query(default = "all", description="Channel"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return how much a political group has intervened in tv per year
@@ -847,45 +987,47 @@ async def get_interventions_political_group_per_year(
     if name not in political_groups_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT EXTRACT(YEAR FROM day) AS year, COUNT(*) AS interventions, SUM(duration) AS total_minutes
+        SELECT EXTRACT(YEAR FROM day) AS year, COUNT(*) AS interventions, SUM(duration) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY year
         ORDER BY year
     """
 
-    params.extend([start_date_, end_date_])
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
-    data = query_postgresql(query, params)
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
 
-    temp_years = [int(row[0]) for row in data]
-    temp_interventions = [row[1] for row in data]
-    temp_minutes = [row[2] for row in data]
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+
+    temp_years = [int(row['year']) for row in rows]
+    temp_interventions = [row['interventions'] for row in rows]
+    temp_minutes = [row['duration'] for row in rows]
     total_minutes = sum(temp_minutes)
 
     years = []
@@ -913,13 +1055,14 @@ async def get_interventions_political_group_per_year(
 
 @app.get("/v1/interventions-politician-per-day/{name}")
 async def get_interventions_politician_per_day(
+    request: Request,
     name: str,
     year: str = Query(description="choose year"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     channel_: str = Query(default = "all", description="Channel"),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic"),
+    topics_list: Annotated[list[str], Query()] = [],
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=367, description="Page size")
 ):
@@ -931,48 +1074,46 @@ async def get_interventions_politician_per_day(
     if name not in politicians_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    start_date_ = str(year) + "/01/01"
+    end_date_ = str(year) + "/12/31"
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT day, COUNT(*) AS interventions, COALESCE(SUM(duration), 0) AS total_minutes
+        SELECT day, COUNT(*) AS interventions, COALESCE(SUM(duration), 0) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY day 
         ORDER BY day
     """
-    start_date_ = str(year) + "/01/01"
-    end_date_ = str(year) + "/12/31"
 
-    params.extend([start_date_, end_date_])
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
-    data = query_postgresql(query, params)
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
 
     begin_date = dt.date(int(start_date_.split('/')[0]),
                          int(start_date_.split('/')[1]),
@@ -988,8 +1129,9 @@ async def get_interventions_politician_per_day(
         results[str(current_date)] = {"interventions": 0, "minutes": 0}
         current_date += dt.timedelta(days=1)
 
-    for day, interventions, minutes in data:
-        results[str(day)] = {"interventions": interventions, "minutes": minutes}
+    for row in rows:
+        results [str(row['day'])] = {"interventions": row["interventions"],
+                "minutes": row["duration"]}
 
     paginated_list = list(results.items())[(page - 1) * page_size : page * page_size]
 
@@ -1003,12 +1145,13 @@ async def get_interventions_politician_per_day(
 
 @app.get("/v1/interventions-political-group-per-day/{name}")
 async def get_interventions_political_group_per_day(
+    request: Request,
     name: str,
     year: str = Query(description="choose year"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     channel_: str = Query(default = "all", description="Channel"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic"),
+    topics_list: Annotated[list[str], Query()] = [],
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=367, description="Page size")
 ):
@@ -1020,43 +1163,45 @@ async def get_interventions_political_group_per_day(
     if name not in political_groups_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    start_date_ = str(year) + "/01/01"
+    end_date_ = str(year) + "/12/31"
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT day, COUNT(*) AS interventions, COALESCE(SUM(duration), 0) AS total_minutes
+        SELECT day, COUNT(*) AS interventions, COALESCE(SUM(duration), 0) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY day 
         ORDER BY day
     """
-    start_date_ = str(year) + "/01/01"
-    end_date_ = str(year) + "/12/31"
 
-    params.extend([start_date_, end_date_])
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
-    data = query_postgresql(query, params)
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
 
     begin_date = dt.date(int(start_date_.split('/')[0]),
                          int(start_date_.split('/')[1]),
@@ -1072,8 +1217,9 @@ async def get_interventions_political_group_per_day(
         results[str(current_date)] = {"interventions": 0, "minutes": 0}
         current_date += dt.timedelta(days=1)
 
-    for day, interventions, minutes in data:
-        results[str(day)] = {"interventions": interventions, "minutes": minutes}
+    for row in rows:
+        results [str(row['day'])] = {"interventions": row["interventions"],
+                "minutes": row["duration"]}
 
     paginated_list = list(results.items())[(page - 1) * page_size : page * page_size]
 
@@ -1088,6 +1234,7 @@ async def get_interventions_political_group_per_day(
 
 @app.get("/v1/politician-channels-programs/{name}")
 async def get_politician_channels_programs(
+    request: Request,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
@@ -1095,7 +1242,7 @@ async def get_politician_channels_programs(
     channel_: str = Query(default = "all", description="Channel"),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return every channel a politician talked in, specifying for each 
@@ -1104,57 +1251,55 @@ async def get_politician_channels_programs(
     if name not in politicians_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT channel, program, COUNT(*) AS interventions, SUM(duration) AS total_minutes
+        SELECT channel, program, COUNT(*) AS interventions, SUM(duration) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY channel, program
-        ORDER BY channel, total_minutes DESC;
+        ORDER BY channel, duration DESC;
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     final_channels = []
-    while len(data) != 0:
+    while len(rows) != 0:
         temp_programs = []
-        temp_data = data.pop(0)
-        temp_channel = temp_data[0]
-        temp_programs.append({"program": temp_data[1], "interventions": temp_data[2], "minutes": temp_data[3]})
+        temp_data = rows.pop(0)
+        temp_channel = temp_data['channel']
+        temp_programs.append({"program": temp_data['program'], "interventions": temp_data['interventions'], "minutes": temp_data['duration']})
 
         
-        while len(data) != 0 and data[0][0] == temp_channel:
-            temp_data = data.pop(0)
-            temp_programs.append({"program": temp_data[1], "interventions": temp_data[2], "minutes": temp_data[3]})
+        while len(rows) != 0 and rows[0]['channel'] == temp_channel:
+            temp_data = rows.pop(0)
+            temp_programs.append({"program": temp_data['program'], "interventions": temp_data['interventions'], "minutes": temp_data['duration']})
             
         final_channels.append({"channel": temp_channel, "programs": temp_programs})
 
@@ -1163,13 +1308,14 @@ async def get_politician_channels_programs(
 
 @app.get("/v1/political-group-channels-programs/{name}")
 async def get_political_group_channels_programs(
+    request: Request,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     channel_: str = Query(default = "all", description="Channel"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return every channel a political group talked in, specifying for each 
@@ -1178,51 +1324,53 @@ async def get_political_group_channels_programs(
     if name not in political_groups_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT channel, program, COUNT(*) AS interventions, SUM(duration) AS total_minutes
+        SELECT channel, program, COUNT(*) AS interventions, SUM(duration) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY channel, program
-        ORDER BY channel, total_minutes DESC;
+        ORDER BY channel, duration DESC;
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     final_channels = []
-    while len(data) != 0:
+    while len(rows) != 0:
         temp_programs = []
-        temp_data = data.pop(0)
-        temp_channel = temp_data[0]
-        temp_programs.append({"program": temp_data[1], "interventions": temp_data[2], "minutes": temp_data[3]})
+        temp_data = rows.pop(0)
+        temp_channel = temp_data['channel']
+        temp_programs.append({"program": temp_data['program'], "interventions": temp_data['interventions'], "minutes": temp_data['duration']})
         
-        while len(data) != 0 and data[0][0] == temp_channel:
-            temp_data = data.pop(0)
-            temp_programs.append({"program": temp_data[1], "interventions": temp_data[2], "minutes": temp_data[3]})
+        while len(rows) != 0 and rows[0]['channel'] == temp_channel:
+            temp_data = rows.pop(0)
+            temp_programs.append({"program": temp_data['program'], "interventions": temp_data['interventions'], "minutes": temp_data['duration']})
             
         final_channels.append({"channel": temp_channel, "programs": temp_programs})
 
@@ -1232,6 +1380,7 @@ async def get_political_group_channels_programs(
 
 @app.get("/v1/channel-programs-politician/{name}/{channel}")
 async def get_channel_programs_politician(
+    request: Request,
     name: str,
     channel: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -1239,7 +1388,7 @@ async def get_channel_programs_politician(
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return every program of a channel a politician talked in, 
@@ -1250,51 +1399,53 @@ async def get_channel_programs_politician(
     if channel not in channels:
         raise HTTPException(status_code=400, detail="Invalid channel")
 
-    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s", "channel = %s"]
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = $1", "channel = $2"]
     params = [name, channel]
+    index = 3
 
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT program, topic, COUNT(*) AS interventions, SUM(duration) AS total_minutes
+        SELECT program, topic, COUNT(*) AS interventions, SUM(duration) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY program, topic
-        ORDER BY program, total_minutes DESC;
+        ORDER BY program, duration DESC;
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     final_programs = []
-    while len(data) != 0:
+    while len(rows) != 0:
         temp_topics = []
-        temp_data = data.pop(0)
-        temp_program = temp_data[0]
-        temp_topics.append({"topic": temp_data[1], "interventions": temp_data[2], "minutes": temp_data[3]})
+        temp_data = rows.pop(0)
+        temp_program = temp_data['program']
+        temp_topics.append({"topic": temp_data['topic'], "interventions": temp_data['interventions'], "minutes": temp_data['duration']})
 
-        while len(data) != 0 and data[0][0] == temp_program:
-            temp_data = data.pop(0)
-            temp_topics.append({"topic": temp_data[1], "interventions": temp_data[2], "minutes": temp_data[3]})
+        while len(rows) != 0 and rows[0]['program'] == temp_program:
+            temp_data = rows.pop(0)
+            temp_topics.append({"topic": temp_data['topic'], "interventions": temp_data['interventions'], "minutes": temp_data['duration']})
 
         final_programs.append({"program": temp_program, "topics": temp_topics})
 
@@ -1304,13 +1455,14 @@ async def get_channel_programs_politician(
 
 @app.get("/v1/channel-programs-political-group/{name}/{channel}")
 async def get_channel_programs_political_group(
+    request: Request,
     name: str,
     channel: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return every program of a channel a political group talked in, 
@@ -1321,46 +1473,53 @@ async def get_channel_programs_political_group(
     if channel not in channels:
         raise HTTPException(status_code=400, detail="Invalid channel")
 
-    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s", "channel = %s"]
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = $1", "channel = $2"]
     params = [name, channel]
+    index = 3
 
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT program, topic, COUNT(*) AS interventions, SUM(duration) AS total_minutes
+        SELECT program, topic, COUNT(*) AS interventions, SUM(duration) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY program, topic
-        ORDER BY program, total_minutes DESC;
+        ORDER BY program, duration DESC;
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
 
     final_programs = []
-    while len(data) != 0:
+    while len(rows) != 0:
         temp_topics = []
-        temp_data = data.pop(0)
-        temp_program = temp_data[0]
-        temp_topics.append({"topic": temp_data[1], "interventions": temp_data[2], "minutes": temp_data[3]})
+        temp_data = rows.pop(0)
+        temp_program = temp_data['program']
+        temp_topics.append({"topic": temp_data['topic'], "interventions": temp_data['interventions'], "minutes": temp_data['duration']})
 
-        while len(data) != 0 and data[0][0] == temp_program:
-            temp_data = data.pop(0)
-            temp_topics.append({"topic": temp_data[1], "interventions": temp_data[2], "minutes": temp_data[3]})
+        while len(rows) != 0 and rows[0]['program'] == temp_program:
+            temp_data = rows.pop(0)
+            temp_topics.append({"topic": temp_data['topic'], "interventions": temp_data['interventions'], "minutes": temp_data['duration']})
 
         final_programs.append({"program": temp_program, "topics": temp_topics})
 
@@ -1370,6 +1529,7 @@ async def get_channel_programs_political_group(
 
 @app.get("/v1/minutes-channel-per-politician/{channel}/{name}")
 async def get_minutes_channel_per_politician(
+    request: Request,
     channel: str,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -1377,7 +1537,7 @@ async def get_minutes_channel_per_politician(
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return all the programs in a channel, and how many minutes a politician has intervened
@@ -1393,63 +1553,76 @@ async def get_minutes_channel_per_politician(
         WHERE channel = '{channel}'
     """
 
-    programs_in_channel = query_postgresql(query)
+    task = asyncio.create_task(query_postgresql(query))
 
-    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s", "channel = %s"]
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        programs_in_channel = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = $1", "channel = $2"]
     params = [name, channel]
+    index = 3
 
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT program, day, SUM(duration) AS total_minutes
+        SELECT program, day, SUM(duration) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY program, day
-        ORDER BY program, total_minutes DESC;
+        ORDER BY program, duration DESC;
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     last_year = int(end_date_.split('/')[0])
 
     total = 0
 
     final_programs = []
-    while len(data) != 0:
+    while len(rows) != 0:
         first_year = int(start_date_.split('/')[0])
         years = {}
         while first_year != (last_year + 1):
             years[str(first_year)] = 0
             first_year += 1
-        temp_data = data.pop(0)
-        temp_program = temp_data[0]
-        years[temp_data[1].strftime('%Y')] += temp_data[2]
-        total += temp_data[2]
+        temp_data = rows.pop(0)
+        temp_program = temp_data['program']
+        years[temp_data['day'].strftime('%Y')] += temp_data['duration']
+        total += temp_data['duration']
 
-        while len(data) != 0 and data[0][0] == temp_program:
-            temp_data = data.pop(0)
-            years[temp_data[1].strftime('%Y')] += temp_data[2]
-            total += temp_data[2]
+        while len(rows) != 0 and rows[0]['program'] == temp_program:
+            temp_data = rows.pop(0)
+            years[temp_data['day'].strftime('%Y')] += temp_data['duration']
+            total += temp_data['duration']
         
         final_programs.append({"program": temp_program, "data": years})
     
@@ -1462,11 +1635,11 @@ async def get_minutes_channel_per_politician(
     for p in programs_in_channel:
         check = False
         for item in final_programs:
-            if p[0] == item["program"]:
+            if p['program'] == item["program"]:
                 check = True
                 continue
         if not check:
-            final_programs.append({"program": p[0], "data": years})
+            final_programs.append({"program": p['program'], "data": years})
 
     sorted_programs = sorted(final_programs, key=lambda x: x["program"])
 
@@ -1475,13 +1648,14 @@ async def get_minutes_channel_per_politician(
 
 @app.get("/v1/minutes-channel-per-political-group/{channel}/{name}")
 async def get_minutes_channel_per_political_group(
+    request: Request,
     channel: str,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return all the programs in a channel, and how many minutes a political group has intervened
@@ -1497,58 +1671,75 @@ async def get_minutes_channel_per_political_group(
         WHERE channel = '{channel}'
     """
 
-    programs_in_channel = query_postgresql(query)
+    task = asyncio.create_task(query_postgresql(query))
 
-    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s", "channel = %s"]
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        programs_in_channel = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = $1", "channel = $2"]
     params = [name, channel]
+    index = 3
 
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT program, day, SUM(duration) AS total_minutes
+        SELECT program, day, SUM(duration) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY program, day
-        ORDER BY program, total_minutes DESC;
+        ORDER BY program, duration DESC;
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     last_year = int(end_date_.split('/')[0])
 
     total = 0
 
     final_programs = []
-    while len(data) != 0:
+    while len(rows) != 0:
         first_year = int(start_date_.split('/')[0])
         years = {}
         while first_year != (last_year + 1):
             years[str(first_year)] = 0
             first_year += 1
-        temp_data = data.pop(0)
-        temp_program = temp_data[0]
-        years[temp_data[1].strftime('%Y')] += temp_data[2]
-        total += temp_data[2]
+        temp_data = rows.pop(0)
+        temp_program = temp_data['program']
+        years[temp_data['day'].strftime('%Y')] += temp_data['duration']
+        total += temp_data['duration']
 
-        while len(data) != 0 and data[0][0] == temp_program:
-            temp_data = data.pop(0)
-            years[temp_data[1].strftime('%Y')] += temp_data[2]
-            total += temp_data[2]
+        while len(rows) != 0 and rows[0]['program'] == temp_program:
+            temp_data = rows.pop(0)
+            years[temp_data['day'].strftime('%Y')] += temp_data['duration']
+            total += temp_data['duration']
         
         final_programs.append({"program": temp_program, "data": years})
     
@@ -1561,11 +1752,11 @@ async def get_minutes_channel_per_political_group(
     for p in programs_in_channel:
         check = False
         for item in final_programs:
-            if p[0] == item["program"]:
+            if p['program'] == item["program"]:
                 check = True
                 continue
         if not check:
-            final_programs.append({"program": p[0], "data": years})
+            final_programs.append({"program": p['program'], "data": years})
 
     sorted_programs = sorted(final_programs, key=lambda x: x["program"])
 
@@ -1575,6 +1766,7 @@ async def get_minutes_channel_per_political_group(
 
 @app.get("/v2/minutes-channel-per-politician/{channel}/{name}")
 async def get_minutes_channel_per_politician(
+    request: Request,
     channel: str,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
@@ -1582,7 +1774,7 @@ async def get_minutes_channel_per_politician(
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return all the programs in a channel, and how many minutes a politician has intervened
@@ -1599,42 +1791,55 @@ async def get_minutes_channel_per_politician(
         ORDER BY program
     """
 
-    programs_in_channel = query_postgresql(query)
+    task = asyncio.create_task(query_postgresql(query))
 
-    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s", "channel = %s"]
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        programs_in_channel = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = $1", "channel = $2"]
     params = [name, channel]
+    index = 3
 
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT program, EXTRACT(YEAR FROM day) AS year, SUM(duration) AS total_duration
+        SELECT program, EXTRACT(YEAR FROM day) AS year, SUM(duration) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY program, EXTRACT(YEAR FROM day)
-        ORDER BY program, total_duration DESC
+        ORDER BY program, duration DESC
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     first_year = int(start_date_.split('/')[0])
     last_year = int(end_date_.split('/')[0])
@@ -1646,17 +1851,16 @@ async def get_minutes_channel_per_politician(
 
     final_programs = []
     for p in programs_in_channel:
-        final_programs.append({"program": p[0], "data": years.copy()})
-
+        final_programs.append({"program": p['program'], "data": years.copy()})
 
     total = 0
 
-    while len(data) != 0:
-        temp_data = data.pop(0)
+    while len(rows) != 0:
+        temp_data = rows.pop(0)
         for item in final_programs:
-            if item["program"] == temp_data[0]:
-                item["data"][str(temp_data[1])] = temp_data[2]
-                total += temp_data[2]
+            if item["program"] == temp_data['program']:
+                item["data"][str(temp_data['year'])] = temp_data['duration']
+                total += temp_data['duration']
                 break
 
     return { "politician": name, "total": total, "programs": final_programs }
@@ -1664,13 +1868,14 @@ async def get_minutes_channel_per_politician(
 
 @app.get("/v2/minutes-channel-per-political-group/{channel}/{name}")
 async def get_minutes_channel_per_political_group(
+    request: Request,
     channel: str,
     name: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return all the programs in a channel, and how many minutes a political group has intervened
@@ -1687,37 +1892,54 @@ async def get_minutes_channel_per_political_group(
         ORDER BY program
     """
 
-    programs_in_channel = query_postgresql(query)
+    task = asyncio.create_task(query_postgresql(query))
 
-    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s", "channel = %s"]
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        programs_in_channel = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = $1", "channel = $2"]
     params = [name, channel]
+    index = 3
 
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT program, EXTRACT(YEAR FROM day) AS year, SUM(duration) AS total_duration
+        SELECT program, EXTRACT(YEAR FROM day) AS year, SUM(duration) AS duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY program, EXTRACT(YEAR FROM day)
-        ORDER BY program, total_duration DESC
+        ORDER BY program, duration DESC
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     first_year = int(start_date_.split('/')[0])
     last_year = int(end_date_.split('/')[0])
@@ -1729,17 +1951,16 @@ async def get_minutes_channel_per_political_group(
 
     final_programs = []
     for p in programs_in_channel:
-        final_programs.append({"program": p[0], "data": years.copy()})
-
+        final_programs.append({"program": p['program'], "data": years.copy()})
 
     total = 0
 
-    while len(data) != 0:
-        temp_data = data.pop(0)
+    while len(rows) != 0:
+        temp_data = rows.pop(0)
         for item in final_programs:
-            if item["program"] == temp_data[0]:
-                item["data"][str(temp_data[1])] = temp_data[2]
-                total += temp_data[2]
+            if item["program"] == temp_data['program']:
+                item["data"][str(temp_data['year'])] = temp_data['duration']
+                total += temp_data['duration']
                 break
 
     return { "political group": name, "total": total, "programs": final_programs }
@@ -1748,14 +1969,15 @@ async def get_minutes_channel_per_political_group(
 
 @app.get("/v1/channels-programs-topics-politician/{name}")
 async def get_channels_programs_topics_politician(
+    request: Request,
     name: str,
     start_date_: str = Query(default=start_date, description="Start date"),
     end_date_: str = Query(default=end_date, description="End date"),
     kind_: str = Query(default="both", description="Type of data", enum=kind),
     channel_: str = Query(default="all", description="Channel"),
     affiliation_: str = Query(default="all", description="Affiliation"),
-    program_: str = Query(default="all", description="Program"),
-    topic_: str = Query(default="all", description="Topic"),
+    program_: str = Query(default = "all", description="Program"),
+    topics_list: Annotated[list[str], Query()] = [],
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=100, description="Page size"),
 ):
@@ -1768,66 +1990,64 @@ async def get_channels_programs_topics_politician(
     if name not in politicians_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT channel, program, topic, SUM(duration)
+        SELECT channel, program, topic, SUM(duration) as duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY channel, program, topic
         ORDER BY channel, program, topic
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     final_channels = []
     channel_dict = {}
 
-    for channel, program, topic, minutes in data:
-        if channel not in channel_dict:
-            channel_dict[channel] = []
+    for row in rows:
+        if row['channel'] not in channel_dict:
+            channel_dict[row['channel']] = []
         found = False
-        for entry in channel_dict[channel]:
-            if entry['program'] == program:
-                entry['topics'].append({"topic": topic, "minutes": minutes})
+        for entry in channel_dict[row['channel']]:
+            if entry['program'] == row['program']:
+                entry['topics'].append({"topic": row['topic'], "minutes": row['duration']})
                 found = True
                 break
         if not found:
-            channel_dict[channel].append({
-                "program": program,
-                "topics": [{"topic": topic, "minutes": minutes}]
+            channel_dict[row['channel']].append({
+                "program": row['program'],
+                "topics": [{"topic": row['topic'], "minutes": row['duration']}]
             })
 
-    for channel, programs in channel_dict.items():
-        final_channels.append({"channel": channel, "programs": programs})
+    for channel, program in channel_dict.items():
+        final_channels.append({"channel": channel, "programs": program})
 
     paginated_channels = final_channels[(page - 1) * page_size: page * page_size]
 
@@ -1842,13 +2062,14 @@ async def get_channels_programs_topics_politician(
 
 @app.get("/v1/channels-programs-topics-political-group/{name}")
 async def get_channels_programs_topics_political_group(
+    request: Request,
     name: str,
     start_date_: str = Query(default=start_date, description="Start date"),
     end_date_: str = Query(default=end_date, description="End date"),
     kind_: str = Query(default="both", description="Type of data", enum=kind),
     channel_: str = Query(default="all", description="Channel"),
     program_: str = Query(default="all", description="Program"),
-    topic_: str = Query(default="all", description="Topic"),
+    topics_list: Annotated[list[str], Query()] = [],
     page: int = Query(default=1, description="Page number"),
     page_size: int = Query(default=10000, description="Page size"),
 ):
@@ -1861,61 +2082,63 @@ async def get_channels_programs_topics_political_group(
     if name not in political_groups_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT channel, program, topic, SUM(duration)
+        SELECT channel, program, topic, SUM(duration) as duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY channel, program, topic
         ORDER BY channel, program, topic
     """
-    params.extend([start_date_, end_date_])
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
+
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
 
     final_channels = []
     channel_dict = {}
 
-    for channel, program, topic, minutes in data:
-        if channel not in channel_dict:
-            channel_dict[channel] = []
+    for row in rows:
+        if row['channel'] not in channel_dict:
+            channel_dict[row['channel']] = []
         found = False
-        for entry in channel_dict[channel]:
-            if entry['program'] == program:
-                entry['topics'].append({"topic": topic, "minutes": minutes})
+        for entry in channel_dict[row['channel']]:
+            if entry['program'] == row['program']:
+                entry['topics'].append({"topic": row['topic'], "minutes": row['duration']})
                 found = True
                 break
         if not found:
-            channel_dict[channel].append({
-                "program": program,
-                "topics": [{"topic": topic, "minutes": minutes}]
+            channel_dict[row['channel']].append({
+                "program": row['program'],
+                "topics": [{"topic": row['topic'], "minutes": row['duration']}]
             })
 
-    for channel, programs in channel_dict.items():
-        final_channels.append({"channel": channel, "programs": programs})
+    for channel, program in channel_dict.items():
+        final_channels.append({"channel": channel, "programs": program})
 
     paginated_channels = final_channels[(page - 1) * page_size: page * page_size]
 
@@ -1931,6 +2154,7 @@ async def get_channels_programs_topics_political_group(
 
 @app.get("/v1/channel-politicians/{channel}")
 async def get_channel_politicians(
+    request: Request,
     channel: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
@@ -1938,7 +2162,7 @@ async def get_channel_politicians(
     name_: str = Query(default = "all", description="Politician"),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic"),
+    topics_list: Annotated[list[str], Query()] = [],
     n_pol: int = Query(default = 10, description="number of politicians to analyze")
 ):
     """
@@ -1947,61 +2171,62 @@ async def get_channel_politicians(
     if channel not in channels:
         raise HTTPException(status_code=400, detail="Invalid channel")
 
-    conditions = ["name != 'Soggetto Collettivo'", "channel = %s"]
-    params = [channel]
+    conditions = ["name != 'Soggetto Collettivo'", "channel = $1"]
+    params = [channel, n_pol]
+    index = 3
 
-    if name_ != "all":
-        if name_ not in politicians_list:
-            raise HTTPException(status_code=400, detail="Invalid name")
-        conditions.append("fullname = %s")
-        params.append(name_)
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "fullname", name_, politicians_list, conditions, params)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT fullname, SUM(duration)
+        SELECT fullname, SUM(duration) as duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY fullname
-        ORDER BY SUM(duration) DESC
-        LIMIT %s
+        ORDER BY duration DESC
+        LIMIT $2
     """
-    params.extend([start_date_, end_date_, n_pol])
 
-    result = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
-    final_list = [{"name": name, "minutes": minutes} for name, minutes in result]
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    final_list = []
+    for row in rows:
+        final_list.append({"name": row['fullname'], "minutes": row['duration']})
 
     return { "channel": channel, "pol": final_list }
 
 
 @app.get("/v1/channel-political-groups/{channel}")
 async def get_channel_political_groups(
+    request: Request,
     channel: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     name_: str = Query(default = "all", description="Political group"),
     program_: str = Query(default = "all", description="Program"),
-    topic_: str = Query(default = "all", description="Topic"),
+    topics_list: Annotated[list[str], Query()] = [],
     n_pol: int = Query(default = 10, description="number of political groups to analyze")
 ):
     """
@@ -2010,50 +2235,56 @@ async def get_channel_political_groups(
     if channel not in channels:
         raise HTTPException(status_code=400, detail="Invalid channel")
 
-    conditions = ["name = 'Soggetto Collettivo'", "channel = %s"]
-    params = [channel]
+    conditions = ["name = 'Soggetto Collettivo'", "channel = $1"]
+    params = [channel, n_pol]
+    index = 3
 
-    if name_ != "all":
-        if name_ not in political_groups_list:
-            raise HTTPException(status_code=400, detail="Invalid name")
-        conditions.append("lastname = %s")
-        params.append(name_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "fullname", name_, politicians_list, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT fullname, SUM(duration)
+        SELECT fullname, SUM(duration) as duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY fullname
-        ORDER BY SUM(duration) DESC
-        LIMIT %s
+        ORDER BY duration DESC
+        LIMIT $2
     """
-    params.extend([start_date_, end_date_, n_pol])
 
-    result = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
-    final_list = [{"name": name, "minutes": minutes} for name, minutes in result]
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    final_list = []
+    for row in rows:
+        final_list.append({"name": row['fullname'], "minutes": row['duration']})
 
     return { "channel": channel, "pol": final_list }
 
 # -------------------------------------------------------
 
+
 @app.get("/v1/program-politicians/{program}")
 async def get_program_politicians(
+    request: Request,
     program: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
@@ -2061,7 +2292,7 @@ async def get_program_politicians(
     name_: str = Query(default = "all", description="Politician"),
     affiliation_: str = Query(default = "all", description="Affiliation"),
     channel_: str = Query(default = "all", description="Channel"),
-    topic_: str = Query(default = "all", description="Topic"),
+    topics_list: Annotated[list[str], Query()] = [],
     n_pol: int = Query(default = 10, description="number of politicians to analyze")
 ):
     """
@@ -2070,61 +2301,62 @@ async def get_program_politicians(
     if program not in programs:
         raise HTTPException(status_code=400, detail="Invalid program")
 
-    conditions = ["name != 'Soggetto Collettivo'", "program = %s"]
-    params = [program]
+    conditions = ["name != 'Soggetto Collettivo'", "program = $1"]
+    params = [program, n_pol]
+    index = 3
 
-    if name_ != "all":
-        if name_ not in politicians_list:
-            raise HTTPException(status_code=400, detail="Invalid name")
-        conditions.append("fullname = %s")
-        params.append(name_)
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "fullname", name_, politicians_list, conditions, params)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT fullname, SUM(duration)
+        SELECT fullname, SUM(duration) as duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY fullname
-        ORDER BY SUM(duration) DESC
-        LIMIT %s
+        ORDER BY duration DESC
+        LIMIT $2
     """
-    params.extend([start_date_, end_date_, n_pol])
 
-    result = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
-    final_list = [{"name": name, "minutes": minutes} for name, minutes in result]
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    final_list = []
+    for row in rows:
+        final_list.append({"name": row['fullname'], "minutes": row['duration']})
 
     return { "program": program, "pol": final_list }
 
 
 @app.get("/v1/program-political-groups/{program}")
 async def get_program_political_groups(
+    request: Request,
     program: str,
     start_date_: str = Query(default = start_date, description="Start date"),
     end_date_: str = Query(default = end_date, description="End date"),
     kind_: str = Query(default = "both" , description="Type of data", enum = kind),
     name_: str = Query(default = "all", description="Political group"),
     channel_: str = Query(default = "all", description="Channel"),
-    topic_: str = Query(default = "all", description="Topic"),
+    topics_list: Annotated[list[str], Query()] = [],
     n_pol: int = Query(default = 10, description="number of political groups to analyze")
 ):
     """
@@ -2133,43 +2365,46 @@ async def get_program_political_groups(
     if program not in programs:
         raise HTTPException(status_code=400, detail="Invalid program")
 
-    conditions = ["name = 'Soggetto Collettivo'", "program = %s"]
-    params = [program]
+    conditions = ["name = 'Soggetto Collettivo'", "program = $1"]
+    params = [program, n_pol]
+    index = 3
 
-    if name_ != "all":
-        if name_ not in political_groups_list:
-            raise HTTPException(status_code=400, detail="Invalid name")
-        conditions.append("lastname = %s")
-        params.append(name_)
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "fullname", name_, politicians_list, conditions, params)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
 
     condition_str = " AND ".join(conditions)
 
     query = f"""
-        SELECT fullname, SUM(duration)
+        SELECT fullname, SUM(duration) as duration
         FROM {TABLE_NAME}
-        WHERE {condition_str} AND day BETWEEN %s AND %s
+        WHERE {condition_str}
         GROUP BY fullname
-        ORDER BY SUM(duration) DESC
-        LIMIT %s
+        ORDER BY duration DESC
+        LIMIT $2
     """
-    params.extend([start_date_, end_date_, n_pol])
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
-    result = query_postgresql(query, params)
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
 
-    final_list = [{"name": name, "minutes": minutes} for name, minutes in result]
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    final_list = []
+    for row in rows:
+        final_list.append({"name": row['fullname'], "minutes": row['duration']})
 
     return { "program": program, "pol": final_list }
 
@@ -2177,13 +2412,14 @@ async def get_program_political_groups(
 
 @app.get("/v1/politician-getall/{name}")
 async def get_politician_getall(
+    request: Request,
     name: str,
     date_: str = Query(default="all"),
     kind_: str = Query(default="both", enum=kind),
     channel_: str = Query(default="all"),
     affiliation_: str = Query(default="all"),
     program_: str = Query(default="all"),
-    topic_: str = Query(default="all")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return for a politician, all data from selected filters
@@ -2191,39 +2427,20 @@ async def get_politician_getall(
     if name not in politicians_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name != 'Soggetto Collettivo'", "fullname = %s"]
+    conditions = ["name != 'Soggetto Collettivo'", "fullname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
     if date_ != "all":
-        try:
-            datetime.strptime(date_, "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Try with YYYY-MM-DD")
-        conditions.append("day = %s")
-        params.append(date_)
+        conditions.append(f"day = ${index}")
+        params.append(validate_date(date_))
+        index += 1
 
     condition_str = " AND ".join(conditions)
 
@@ -2233,20 +2450,47 @@ async def get_politician_getall(
         WHERE {condition_str}
     """
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
-    return {"politician": name, "data": data}
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+    
+    final_data = []
+    for row in rows:
+        final_data.append([
+            row["channel"],
+            row["program"],
+            row["day"],
+            row["lastname"],
+            row["name"],
+            row["affiliation"],
+            row["topic"],
+            row["duration"],
+            row["kind"],
+            row["fullname"],
+            ])        
+
+    return {"politician": name, "data": final_data}
 
 
 @app.get("/v1/political-group-getall/{name}")
 async def get_political_group_getall(
+    request: Request,
     name: str,
     date_: str = Query(default="all"),
     kind_: str = Query(default="both", enum=kind),
     channel_: str = Query(default="all"),
     affiliation_: str = Query(default="all"),
     program_: str = Query(default="all"),
-    topic_: str = Query(default="all")
+    topics_list: Annotated[list[str], Query()] = [],
 ):
     """
     Return for a political group, all data from selected filters
@@ -2254,39 +2498,20 @@ async def get_political_group_getall(
     if name not in political_groups_list:
         raise HTTPException(status_code=400, detail="Invalid name")
 
-    conditions = ["name = 'Soggetto Collettivo'", "lastname = %s"]
+    conditions = ["name = 'Soggetto Collettivo'", "lastname = $1"]
     params = [name]
+    index = 2
 
-    if channel_ != "all":
-        if channel_ not in channels:
-            raise HTTPException(status_code=400, detail="Invalid channel")
-        conditions.append("channel = %s")
-        params.append(channel_)
-    if affiliation_ != "all":
-        if affiliation_ not in affiliations:
-            raise HTTPException(status_code=400, detail="Invalid affiliation")
-        conditions.append("affiliation = %s")
-        params.append(affiliation_)
-    if program_ != "all":
-        if program_ not in programs:
-            raise HTTPException(status_code=400, detail="Invalid program")
-        conditions.append("program = %s")
-        params.append(program_)
-    if topic_ != "all":
-        if topic_ not in topics:
-            raise HTTPException(status_code=400, detail="Invalid topic")
-        conditions.append("topic = %s")
-        params.append(topic_)
-    if kind_ != "both":
-        conditions.append("kind = %s")
-        params.append(kind_)
+    index = add_condition(index, "channel", channel_, channels, conditions, params)
+    index = add_condition(index, "affiliation", affiliation_, affiliations, conditions, params)
+    index = add_condition(index, "program", program_, programs, conditions, params)
+    index = add_topics(index, topics_list, conditions, params)
+    index = add_condition(index, "kind", kind_, kind, conditions, params )
+
     if date_ != "all":
-        try:
-            datetime.strptime(date_, "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Try with YYYY-MM-DD")
-        conditions.append("day = %s")
-        params.append(date_)
+        conditions.append(f"day = ${index}")
+        params.append(validate_date(date_))
+        index += 1
 
     condition_str = " AND ".join(conditions)
 
@@ -2296,6 +2521,32 @@ async def get_political_group_getall(
         WHERE {condition_str}
     """
 
-    data = query_postgresql(query, params)
+    task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
-    return {"politician": name, "data": data}
+    while not task.done():
+        if await request.is_disconnected():
+            task.cancel()
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        await asyncio.sleep(0.2)
+
+    try:
+        rows = await task
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Query cancelled by client")
+
+    final_data = []
+    for row in rows:
+        final_data.append([
+            row["channel"],
+            row["program"],
+            row["day"],
+            row["lastname"],
+            row["name"],
+            row["affiliation"],
+            row["topic"],
+            row["duration"],
+            row["kind"],
+            row["fullname"],
+            ])        
+
+    return {"politician": name, "data": final_data}
