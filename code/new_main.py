@@ -1084,6 +1084,13 @@ async def get_interventions_politician_per_day(
     index = add_topics(index, topics_list, conditions, params)
     index = add_condition(index, "kind", kind_, kind, conditions, params )
 
+    start_date_ = str(year) + "/01/01"
+    end_date_ = str(year) + "/12/31"
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
+
     condition_str = " AND ".join(conditions)
 
     query = f"""
@@ -1093,8 +1100,6 @@ async def get_interventions_politician_per_day(
         GROUP BY day 
         ORDER BY day
     """
-    start_date_ = str(year) + "/01/01"
-    end_date_ = str(year) + "/12/31"
 
     task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
@@ -1124,13 +1129,9 @@ async def get_interventions_politician_per_day(
         results[str(current_date)] = {"interventions": 0, "minutes": 0}
         current_date += dt.timedelta(days=1)
 
-    results = {
-        str(row["day"]): {
-            "interventions": row["interventions"],
-            "minutes": row["duration"]
-        }
-        for row in rows
-    }
+    for row in rows:
+        results [str(row['day'])] = {"interventions": row["interventions"],
+                "minutes": row["duration"]}
 
     paginated_list = list(results.items())[(page - 1) * page_size : page * page_size]
 
@@ -1171,6 +1172,13 @@ async def get_interventions_political_group_per_day(
     index = add_topics(index, topics_list, conditions, params)
     index = add_condition(index, "kind", kind_, kind, conditions, params )
 
+    start_date_ = str(year) + "/01/01"
+    end_date_ = str(year) + "/12/31"
+    conditions.append(f"day BETWEEN ${index} AND ${index + 1}")
+    start_date_obj = validate_date(start_date_)
+    end_date_obj = validate_date(end_date_)
+    params.extend([start_date_obj, end_date_obj])
+
     condition_str = " AND ".join(conditions)
 
     query = f"""
@@ -1180,8 +1188,6 @@ async def get_interventions_political_group_per_day(
         GROUP BY day 
         ORDER BY day
     """
-    start_date_ = str(year) + "/01/01"
-    end_date_ = str(year) + "/12/31"
 
     task = asyncio.create_task(query_postgresql(query, tuple(params)))
 
@@ -1211,13 +1217,9 @@ async def get_interventions_political_group_per_day(
         results[str(current_date)] = {"interventions": 0, "minutes": 0}
         current_date += dt.timedelta(days=1)
 
-    results = {
-        str(row["day"]): {
-            "interventions": row["interventions"],
-            "minutes": row["duration"]
-        }
-        for row in rows
-    }
+    for row in rows:
+        results [str(row['day'])] = {"interventions": row["interventions"],
+                "minutes": row["duration"]}
 
     paginated_list = list(results.items())[(page - 1) * page_size : page * page_size]
 
@@ -2460,8 +2462,23 @@ async def get_politician_getall(
         rows = await task
     except asyncio.CancelledError:
         raise HTTPException(status_code=499, detail="Query cancelled by client")
+    
+    final_data = []
+    for row in rows:
+        final_data.append([
+            row["channel"],
+            row["program"],
+            row["day"],
+            row["lastname"],
+            row["name"],
+            row["affiliation"],
+            row["topic"],
+            row["duration"],
+            row["kind"],
+            row["fullname"],
+            ])        
 
-    return {"politician": name, "data": rows}
+    return {"politician": name, "data": final_data}
 
 
 @app.get("/v1/political-group-getall/{name}")
@@ -2517,4 +2534,19 @@ async def get_political_group_getall(
     except asyncio.CancelledError:
         raise HTTPException(status_code=499, detail="Query cancelled by client")
 
-    return {"politician": name, "data": rows}
+    final_data = []
+    for row in rows:
+        final_data.append([
+            row["channel"],
+            row["program"],
+            row["day"],
+            row["lastname"],
+            row["name"],
+            row["affiliation"],
+            row["topic"],
+            row["duration"],
+            row["kind"],
+            row["fullname"],
+            ])        
+
+    return {"politician": name, "data": final_data}
