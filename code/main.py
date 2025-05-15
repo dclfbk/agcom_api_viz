@@ -20,11 +20,11 @@ import datetime as dt
 from contextlib import asynccontextmanager
 warnings.filterwarnings('ignore')
 
-DB_HOST = "dpg-cvu065p5pdvs73e2gvag-a.frankfurt-postgres.render.com"
+DB_HOST = "dpg-d0j08obe5dus73a1fjj0-a.frankfurt-postgres.render.com"
 DB_PORT = "5432"
-DB_NAME = "agcom_dati_monitoraggio_v0ik"
-DB_USER = "agcom_dati_monitoraggio_v0ik_user"
-DB_PASSWORD = "0rqhxQ8XnEZzx3KNHmYQnQHv321YbmC5"
+DB_NAME = "agcom_dati_monitoraggio_5iv9"
+DB_USER = "agcom_dati_monitoraggio_5iv9_user"
+DB_PASSWORD = "9k6kYE6wW1hCzGc9J2Bf6aTPuOnxApFF"
 TABLE_NAME = "records"
 
 
@@ -166,14 +166,24 @@ This API provides the possibility to query the elementary televised monitoring d
 The data can be found in XML format at [https://www.agcom.it/dati-elementari-di-monitoraggio-televisivo](https://www.agcom.it/dati-elementari-di-monitoraggio-televisivo)
 
 The license under which the data is released by AGCOM is CC-BY-SA-NC
-
+Period:<br/>
+from **%s** to **%s**
+The license under which the data is released by AGCOM is CC-BY-SA-NC
 ![](https://www.agcom.it/documents/10179/4502194/Logo+Creative+common/2e1fe5a2-4324-4965-b8af-76403bb42b15?t=1618583317352)
-
-"""
+""" % (start_date, end_date)
 
 app = FastAPI(
     title="AGCOM - dati elementari di monitoraggio televisivo",
+    description=description,
     version="0.0.1",
+    contact={
+         "name": "Merak",
+         "email": "merakwinston.hall@gmail.com",
+     },
+     license_info={
+         "name": "data under cc-by-nc-sa",
+         "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+     },
     lifespan=lifespan
 )
 
